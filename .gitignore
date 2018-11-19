@@ -2,3 +2,6 @@
 data/
 tmp.log
 *.swp
+*.npy
+*.model
+*.csv
