@@ -9,7 +9,7 @@ from pyro.contrib.examples.util import print_and_log
 from pyro.infer import SVI, JitTrace_ELBO, JitTraceEnum_ELBO, Trace_ELBO, TraceEnum_ELBO, config_enumerate
 from pyro.optim import Adam
 from mnist_cached import MNISTCached, mkdir_p, setup_data_loaders
-from text_ss_vae import TextSSVAE
+from ss_vae import SSVAE
 
 def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
     """
@@ -92,18 +92,14 @@ def main():
     pyro.set_rng_seed(12345)
     cuda = True
     # batch_size: number of images (and labels) to be considered in a batch
-    ss_vae = TextSSVAE(z
-            vocab_size=10, embed_dim=300,
-            z_dim=100, kernels=[3,4,5],
-            filters=[100,100,100], hidden_size = 300,
-            embed_matrix=None, padding_index = 0,
-            num_rnn_layers = 1
-            config_enum="sequential", use_cuda=cuda,
-            aux_loss_multiplier=46
-            )
+    ss_vae = SSVAE(z_dim=50,
+                   hidden_layers=[500],
+                   use_cuda=cuda,
+                   config_enum="sequential",#no idea
+                   aux_loss_multiplier=46)
 
     # setup the optimizer
-    adam_params = {"lr": 1e-3, "betas": (0.9, 0.999)}
+    adam_params = {"lr":0.00042, "betas": (0.9, 0.999)}
     optimizer = Adam(adam_params)
 
     # set up the loss(es) for inference. wrapping the guide in config_enumerate builds the loss as a sum

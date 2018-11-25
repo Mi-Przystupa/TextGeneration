@@ -11,9 +11,9 @@ class SentimentDataSet:
             self.unsup = glob.glob(self.path + 'unsup/*')
             self.pos = glob.glob(self.path +'pos/*')
             self.neg = glob.glob(self.path + 'neg/*')
-            self.all = self.assoc(self.unsup, 0) + \
-                    self.assoc(self.pos, 1) + \
-                    self.assoc(self.neg, 2) 
+            self.all = self.assoc(self.unsup, -1) + \
+                    self.assoc(self.pos, 0) + \
+                    self.assoc(self.neg, 1) 
             self.use_csv = False
         else:
             self.all = pd.read_csv(csv_file)
