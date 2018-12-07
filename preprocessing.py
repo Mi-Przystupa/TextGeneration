@@ -42,7 +42,7 @@ class TextPreprocessing:
     def ConvertDataToIndices(self, X, y=None):
         if self.rep == 'word2vec':
             model = self.model.wv
-            transformer = lambda x: model.vocab.get(w).index \
+            transformer = lambda x: model.vocab.get(x).index \
                     if x in model.vocab else model.vocab.get('<UNKNOWN>').index 
             ret = [None] * len(X)
             for i, x in enumerate(X):

@@ -43,7 +43,7 @@ class SentimentDataSet:
         y = self.all['label'][self.index]
         return X, y 
 
-    def next(self):
+    def __next__(self):
         if self.index < len(self.all):
             if self.use_csv:
                 X, y = self.csv_iter()

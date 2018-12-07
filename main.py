@@ -10,6 +10,7 @@ from pyro.infer import SVI, JitTrace_ELBO, JitTraceEnum_ELBO, Trace_ELBO, TraceE
 from pyro.optim import Adam
 from mnist_cached import MNISTCached, mkdir_p, setup_data_loaders
 from text_ss_vae import TextSSVAE
+from IMDB_cached_New import setup_data_loaders, IMDBCached
 
 def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
     """
@@ -40,19 +41,19 @@ def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
 
         # extract the corresponding batch
         if is_supervised:
-            (xs, ys) = next(sup_iter)
+            (xs, lengths, ys) = next(sup_iter)
             ctr_sup += 1
         else:
-            (xs, ys) = next(unsup_iter)
+            (xs, lengths, ys) = next(unsup_iter)
 
         # run the inference for each loss with supervised or un-supervised
         # data as arguments
         for loss_id in range(num_losses):
             if is_supervised:
-                new_loss = losses[loss_id].step(xs, ys)
+                new_loss = losses[loss_id].step(xs, lengths, ys)
                 epoch_losses_sup[loss_id] += new_loss
             else:
-                new_loss = losses[loss_id].step(xs)
+                new_loss = losses[loss_id].step(xs, lengths)
                 epoch_losses_unsup[loss_id] += new_loss
 
     # return the values of all losses
@@ -90,14 +91,14 @@ def main():
     :return: None
     """
     pyro.set_rng_seed(12345)
-    cuda = True
+    cuda = False
     # batch_size: number of images (and labels) to be considered in a batch
-    ss_vae = TextSSVAE(z
-            vocab_size=10, embed_dim=300,
-            z_dim=100, kernels=[3,4,5],
+    ss_vae = TextSSVAE(
+            embed_dim=300,
+            z_dim=200, kernels=[3,4,5],
             filters=[100,100,100], hidden_size = 300,
-            embed_matrix=None, padding_index = 0,
-            num_rnn_layers = 1
+            padding_index = 0,
+            num_rnn_layers = 1, 
             config_enum="sequential", use_cuda=cuda,
             aux_loss_multiplier=46
             )
@@ -128,15 +129,15 @@ def main():
     try:
         # setup the logger if a filename is provided
         logger = open('./tmp.log', "w") if './tmp.log' else None
-        data_loaders = setup_data_loaders(MNISTCached, cuda, batch_size, sup_num=sup_num)
+        data_loaders = setup_data_loaders(IMDBCached, False, batch_size=128, sup_num=3000)
 
         # how often would a supervised batch be encountered during inference
         # e.g. if sup_num is 3000, we would have every 16th = int(50000/3000) batch supervised
         # until we have traversed through the all supervised batches
-        periodic_interval_batches = int(MNISTCached.train_data_size / (1.0 * sup_num))
+        periodic_interval_batches = int(IMDBCached.train_data_size / (1.0 * sup_num))
 
         # number of unsupervised examples
-        unsup_num = MNISTCached.train_data_size - sup_num
+        unsup_num = IMDBCached.train_data_size - sup_num
 
         # initializing local variables to maintain the best validation accuracy
         # seen across epochs over the supervised training set

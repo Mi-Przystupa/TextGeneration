@@ -203,8 +203,9 @@ class IMDBCached(TextDataSet):
 
 def my_collate(batch):
     sequences = [torch.tensor(item[0]) for item in batch]
+    lengths = torch.tensor([len(x) for x in sequences]).long()
     labels = [item[1] for item in batch]
-    return [sequences, labels]
+    return [sequences, lengths, labels]
 
 
 def setup_data_loaders(dataset, use_cuda, batch_size, sup_num=None, **kwargs):

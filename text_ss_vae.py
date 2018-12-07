@@ -1,9 +1,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 import pyro
 import pyro.distributions as dist
 from collections import OrderedDict
+import numpy as np
 
 #Insert model here
 class SeqRNN(nn.Module):
@@ -12,8 +14,8 @@ class SeqRNN(nn.Module):
             embed_dim,
             hidden_size=300,
             num_rnn_layers=1,
-            outputs=3, 
-            padding_idx=0, 
+            outputs=2,
+            padding_idx=0,
             batch_size=4,
             batchfirst=True
             ):
@@ -28,7 +30,7 @@ class SeqRNN(nn.Module):
         #Layers
         self.embedding = nn.Embedding(num_embed,embed_dim , padding_idx)
         self.gru = nn.GRU(input_size=embed_dim, hidden_size=hidden_size, 
-                batch_first=batchfirst, num_rnn_layers=self.num_rnn_layers)
+                batch_first=batchfirst, num_layers=self.num_rnn_layers)
         self.output = nn.Linear(embed_dim, outputs)
         
 
@@ -84,8 +86,12 @@ class CNNTextEncoder(nn.Module):
             filters,
             num_embed,
             embed_dim,
-            p=.5, hidden_dim=300, padding_idx=0, outputs=3, batch_first=True):
-        super(NLPCNN, self).__init__()
+            p=.5, hidden_dim=300,
+            padding_idx=0,
+            outputs=2,
+            batch_first=True,
+            input_y=0):
+        super(CNNTextEncoder, self).__init__()
         assert(len(kernels) == len(filters))
         assert(len(kernels) == 3)
         assert(len(filters) == 3)
@@ -102,10 +108,10 @@ class CNNTextEncoder(nn.Module):
 
         self.fully_connected = nn.Sequential(
             nn.Dropout(p),
-            nn.Linear(np.sum(filters), hidden_dim),
+            nn.Linear(np.sum(filters) + input_y, hidden_dim),
             nn.ReLU(),
             nn.Dropout(p),
-            nn.Linear(hidden_dim, outputs),
+            nn.Linear(hidden_dim, outputs))
 
 
     def load_embeddings(self, weights, padding_index, freeze=False, sparse=False): 
@@ -128,7 +134,16 @@ class CNNTextEncoder(nn.Module):
         X2 = F.adaptive_max_pool2d(X2, (1,1)).squeeze(2).squeeze(2)
         X3 = F.adaptive_max_pool2d(X3, (1,1)).squeeze(2).squeeze(2)
 
-        X = torch.cat([X1, X2, X3],dim=1)
+        if y is not None:
+            print('we have labels')
+            print(y)
+            print(y.size())
+            print(X1.size())
+            X = torch.cat([X1, X2, X3, y],dim=1)
+        else:
+            X = torch.cat([X1, X2, X3],dim=1)
+
+        print(X.size())
         X = F.relu(X)
         X = self.fully_connected(X)
         
@@ -170,18 +185,20 @@ class TextSSVAE(nn.Module):
     :param aux_loss_multiplier: the multiplier to use with the auxiliary loss
     """
     def __init__(self,
-            vocab_size=10, embed_dim=300,
+            embed_dim=300,
             z_dim=100, kernels=[3,4,5],
             filters=[100,100,100], hidden_size = 300,
-            embed_matrix=None, padding_index = 0,
-            num_rnn_layers = 1
+            padding_index = 0,
+            num_rnn_layers=1, 
             config_enum=None, use_cuda=False,
-            aux_loss_multiplier=None):
+            aux_loss_multiplier=None,
+            vocab_size = 100,
+            output_size = 2,
+            embed_model='word2vec.model.wv.vectors.npy'):
 
         super(TextSSVAE, self).__init__()
 
         # initialize the class with all arguments provided to the constructor
-        self.vocab_size = vocab_size
         self.embed_dim = embed_dim
         self.z_dim = z_dim
         self.hidden_size = hidden_size
@@ -194,9 +211,14 @@ class TextSSVAE(nn.Module):
         self.allow_broadcast = config_enum == 'parallel'
         self.use_cuda = use_cuda
         self.aux_loss_multiplier = aux_loss_multiplier
-
+        try:
+            embed_matrix = torch.from_numpy(np.load(embed_model)).float()
+        except (Exception, e):
+            embed_matrix = None
         # define and instantiate the neural networks representing
         # the paramters of various distributions in the model
+        self.vocab_size = vocab_size
+        self.output_size = output_size
         self.setup_networks(embed_matrix)
 
     def setup_networks(self, embed_matrix):
@@ -216,7 +238,10 @@ class TextSSVAE(nn.Module):
             self.filters,
             self.vocab_size,
             self.embed_dim,
-            p=.5, hidden_dim=hidden_size, padding_idx=0, outputs=self.vocab_size, batch_first=True) 
+            p=.5, hidden_dim=hidden_size,
+            padding_idx=0,
+            outputs=2,
+            batch_first=True)
 
         if embed_matrix is not None:
             self.encoder_y.load_embeddings(embed_matrix, self.padding_index)
@@ -229,13 +254,16 @@ class TextSSVAE(nn.Module):
         
         #self.encoder_z = self.get_MLP(self.input_size + self.output_size,
         #        self.hidden_layers, 2 * z_dim, nn.Softplus())
+        print('encoder_z inputs y is fixed, please fix')
         self.encoder_z = CNNTextEncoder( self.kernels,
             self.filters,
             self.vocab_size,
             self.embed_dim,
+            outputs=2 * self.z_dim,
             p=.5, hidden_dim= hidden_size,
-            padding_idx=self.padding_index, outputs=z_dim,
-            batch_first=True) 
+            padding_idx=self.padding_index,
+            batch_first=True,
+            input_y=2)
 
         if embed_matrix is not None:
             self.encoder_z.load_embeddings(embed_matrix, self.padding_index)
@@ -247,7 +275,7 @@ class TextSSVAE(nn.Module):
 
         #self.decoder = self.get_MLP(z_dim + self.output_size, 
         #        self.hidden_layers, self.input_size, nn.Sigmoid())
-        self.decoder = SeqRNN( self.num_embed, embed_dim,
+        self.decoder = SeqRNN( self.vocab_size, self.embed_dim,
             hidden_size=self.hidden_size, num_rnn_layers=1, outputs=self.vocab_size) 
 
         if embed_matrix is not None:
@@ -257,7 +285,7 @@ class TextSSVAE(nn.Module):
         if self.use_cuda:
             self.cuda()
 
-    def model(self, xs, ys=None):
+    def model(self, xs, lengths, ys=None):
         """
         The model corresponds to the following generative process:
         p(z) = normal(0,I)              # handwriting style (latent)
@@ -269,34 +297,41 @@ class TextSSVAE(nn.Module):
                    the digit corresponding to the image(s)
         :return: None
         """
+        if self.use_cuda:
+            #xs = xs.cuda()
+            lengths = lengths.cuda()
+            if ys is not None:
+                ys = ys.cuda()
         # register this pytorch module and all of its sub-modules with pyro
         pyro.module("text_ss_vae", self)
 
-        batch_size = xs.size(0)
+        batch_size = len(xs)#xs.size(0)
         with pyro.iarange("data"):
 
             # sample the handwriting style from the constant prior distribution
-            prior_loc = xs.new_zeros([batch_size, self.z_dim])
-            prior_scale = xs.new_ones([batch_size, self.z_dim])
+            print('original used new_zeros...not sure wut it is')
+            prior_loc = torch.zeros([batch_size, self.z_dim])
+            prior_scale = torch.ones([batch_size, self.z_dim])
             zs = pyro.sample("z", dist.Normal(prior_loc, prior_scale).independent(1))
 
             # if the label y (which digit to write) is supervised, sample from the
             # constant prior, otherwise, observe the value (i.e. score it against the constant prior)
-            alpha_prior = xs.new_ones([batch_size, self.output_size]) / (1.0 * self.output_size)
+            alpha_prior = torch.ones([batch_size, self.output_size]) / (1.0 * self.output_size)
             ys = pyro.sample("y", dist.OneHotCategorical(alpha_prior), obs=ys)
 
             # finally, score the image (x) using the handwriting style (z) and
             # the class label y (which digit to write) against the
             # parametrized distribution p(x|y,z) = bernoulli(decoder(y,z))
             # where `decoder` is a neural network
-            inputs = torch.cat([zs, ys], dim=1)
-            loc = self.decoder.forward(inputs)
+            #inputs = torch.cat([zs, ys], dim=1)
+            print('model')
+            loc = self.decoder.forward(zs,lengths, y=ys)
             
             pyro.sample("x", dist.Categorical(loc).independent(1), obs=xs)
             # return the loc so we can visualize it later
             return loc
 
-    def guide(self, xs, ys=None):
+    def guide(self, xs, lengths, ys=None):
         """
         The guide corresponds to the following:
         q(y|x) = categorical(alpha(x))              # infer digit from an image
@@ -308,27 +343,36 @@ class TextSSVAE(nn.Module):
                    the digit corresponding to the image(s)
         :return: None
         """
+        if self.use_cuda:
+            xs = [ x.cuda() for x in xs]
+            lengths = lengths.cuda()
+            if ys is not None:
+                ys = ys.cuda()
         # inform Pyro that the variables in the batch of xs, ys are conditionally independent
+
         with pyro.iarange("data"):
 
             # if the class label (the digit) is not supervised, sample
             # (and score) the digit with the variational distribution
             # q(y|x) = categorical(alpha(x))
             if ys is None:
-                alpha = self.encoder_y.forward(xs)
-                ys = pyro.sample("y", dist.OneHotCategorical(alpha))
+                alpha = self.encoder_y.forward(xs, lengths)
+
+                ys = pyro.sample("y", dist.OneHotCategorical(F.softmax(alpha,dim=1)))
 
             # sample (and score) the latent handwriting-style with the variational
             # distribution q(z|x,y) = normal(loc(x,y),scale(x,y))
-            inputs = torch.cat([xs, ys], dim=1)
-            output = self.encoder_z.forward(inputs)
+            #inputs = torch.cat([xs, ys], dim=1)
+            print('Guide')
+            print(ys.size())
+            output = self.encoder_z.forward(xs, lengths, y=ys)
             loc = self.encoder_z_mean(output)
             scale = self.encoder_z_var(output)
 
             #loc, scale = self.encoder_z.forward([xs, ys])
             pyro.sample("z", dist.Normal(loc, scale).independent(1))
 
-    def classifier(self, xs):
+    def classifier(self, xs, lengths):
         """
         classify an image (or a batch of images)
         :param xs: a batch of scaled vectors of pixels from an image
@@ -336,7 +380,12 @@ class TextSSVAE(nn.Module):
         """
         # use the trained model q(y|x) = categorical(alpha(x))
         # compute all class probabilities for the image(s)
-        alpha = self.encoder_y.forward(xs)
+        if self.use_cuda:
+            #xs = xs.cuda()
+            lengths = lengths.cuda()
+            if ys is not None:
+                ys = ys.cuda()
+        alpha = self.encoder_y.forward(xs,lengths)
 
         # get the index (digit) that corresponds to
         # the maximum predicted class probability
@@ -347,11 +396,16 @@ class TextSSVAE(nn.Module):
         ys = ys.scatter_(1, ind, 1.0)
         return ys
 
-    def model_classify(self, xs, ys=None):
+    def model_classify(self, xs, lengths, ys=None):
         """
         this model is used to add an auxiliary (supervised) loss as described in the
         Kingma et al., "Semi-Supervised Learning with Deep Generative Models".
         """
+        if self.use_cuda:
+            #xs = xs.cuda()
+            lengths = lengths.cuda()
+            if ys is not None:
+                ys = ys.cuda()
         # register all pytorch (sub)modules with pyro
         pyro.module("text_ss_vae", self)
 
@@ -359,7 +413,7 @@ class TextSSVAE(nn.Module):
         with pyro.iarange("data"):
             # this here is the extra term to yield an auxiliary loss that we do gradient descent on
             if ys is not None:
-                alpha = self.encoder_y.forward(xs)
+                alpha = self.encoder_y.forward(xs,lengths)
                 with pyro.poutine.scale(scale=self.aux_loss_multiplier):
                     pyro.sample("y_aux", dist.OneHotCategorical(alpha), obs=ys)
 
