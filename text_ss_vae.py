@@ -17,7 +17,8 @@ class SeqRNN(nn.Module):
             outputs=2,
             padding_idx=0,
             batch_size=4,
-            batchfirst=True
+            batchfirst=True,
+            dropout = 0.3
             ):
         super(SeqRNN, self).__init__()
         self.hidden_size = hidden_size
@@ -28,43 +29,19 @@ class SeqRNN(nn.Module):
         self.batch_size = batch_size
 
         #Layers
+
         self.embedding = nn.Embedding(num_embed,embed_dim , padding_idx)
-        self.gru = nn.GRU(input_size=embed_dim, hidden_size=hidden_size, 
-                batch_first=batchfirst, num_layers=self.num_rnn_layers)
-        self.output = nn.Linear(embed_dim, outputs)
-        
+        self.rnn = nn.LSTM(input_size=embed_dim, hidden_size=hidden_size,
+                batch_first=batchfirst, num_layers=self.num_rnn_layers, dropout=dropout)
+        self.out = nn.Linear(embed_dim, outputs)
+        self.dropout = nn.Dropout(dropout)
 
-    def forward(self, X, lengths, y=None):
-        #length corresponds to length of entries in X, expected to be sorted from longest to shortest
-        #assumes X is not padded 
-        #since X has to be a list, dimensions of X are batch_size
-        self.batch_size = len(X) #lol, there's no reason this needs to be a field hahah. 
-        hidden = self.initHidden()
-        X = pad_sequence(X, batch_first=self.batch_first, padding_value=self.padding_idx) 
-
-        #Get embeddings
-        X = self.embedding(X)
-        X = pack_padded_sequence(X, lengths, batch_first=self.batch_first)
-        #output, lengths = pad_packed_sequence(embedded, batch_first=self.batch_first)
-
-        X, hidden = self.gru(X, hidden)
-        X, lengths = pad_packed_sequence(X, batch_first=self.batch_first)
-        X = F.relu(X)
-        X = X.contiguous()
-
-        #This was for classification originally, now it should be for sequences
-        #temp = torch.zeros(self.batch_size, X.size()[2])
-        #if self.use_cuda:
-        #    temp = temp.cuda()
-
-
-        #for i in range(0, self.batch_size):
-        #    l = lengths[i]
-        #    temp[i] = X[i,l - 1,:]
-        #X = temp
-
-        X = self.output(X)
-        return X, hidden
+    def forward(self, input, hidden, cell, y=None):
+        input = input.unqueeze(0)
+        embedded = self.dropout(self.embedding(input))
+        output, (hidden, cell) = self.rnn(embedded, (hidden, cell))
+        prediction = self.out(output.squeeze(0))
+        return prediction, hidden, cell
 
     def initHidden(self):
         result = torch.zeros(self.num_rnn_layers, self.batch_size, self.hidden_size)
@@ -87,10 +64,12 @@ class CNNTextEncoder(nn.Module):
             num_embed,
             embed_dim,
             p=.5, hidden_dim=300,
+            num_rnn_layers=1,
             padding_idx=0,
             outputs=2,
             batch_first=True,
-            input_y=0):
+            input_y=0,
+            dropout=0.3):
         super(CNNTextEncoder, self).__init__()
         assert(len(kernels) == len(filters))
         assert(len(kernels) == 3)
@@ -98,9 +77,13 @@ class CNNTextEncoder(nn.Module):
 
         self.batch_first = batch_first
         self.padding_idx = padding_idx
+        self.hidden_dim = hidden_dim
 
         #parameter configs
         self.embedding = nn.Embedding(num_embed, embed_dim, padding_idx)
+
+        self.rnn = nn.LSTM(embed_dim, hidden_dim, num_rnn_layers, dropout=dropout)
+        self.dropout = nn.Dropout(dropout)
 
         self.conv1 = nn.Conv2d(1, filters[0], (kernels[0], embed_dim)) 
         self.conv2 = nn.Conv2d(1, filters[1], (kernels[1], embed_dim))
@@ -118,54 +101,61 @@ class CNNTextEncoder(nn.Module):
         #replaces existing embeddings with a pretrained one
         self.padding_index = padding_index
         self.embedding = nn.Embedding.from_pretrained(weights, freeze=freeze, sparse=sparse) 
+    def init_hidden(self):
+        return torch.zeros(1, 1, self.hidden_dim)
 
     def forward(self, X, lengths, y=None):
         X = pad_sequence(X, batch_first=self.batch_first,
                 padding_value=self.padding_idx) 
         #Get embeddings
+        init_hidden = torch.cat([self.init_hidden(), y])
         X = self.embedding(X)
-        X = X.unsqueeze(1)
+        embedded = self.dropout(X)
 
-        X1 = F.relu(self.conv1(X))
-        X2 = F.relu(self.conv2(X))
-        X3 = F.relu(self.conv3(X))
+        out, (hidden , cell) = self.rnn(embedded, (init_hidden, self.init_hidden()))
+        #X = X.unsqueeze(1)
 
-        X1 = F.adaptive_max_pool2d(X1, (1,1)).squeeze(2).squeeze(2)
-        X2 = F.adaptive_max_pool2d(X2, (1,1)).squeeze(2).squeeze(2)
-        X3 = F.adaptive_max_pool2d(X3, (1,1)).squeeze(2).squeeze(2)
+        #X1 = F.relu(self.conv1(X))
+        #X2 = F.relu(self.conv2(X))
+        #X3 = F.relu(self.conv3(X))
 
-        if y is not None:
-            print('we have labels')
-            print(y)
-            print(y.size())
-            print(X1.size())
-            X = torch.cat([X1, X2, X3, y],dim=1)
-        else:
-            X = torch.cat([X1, X2, X3],dim=1)
+        #X1 = F.adaptive_max_pool2d(X1, (1,1)).squeeze(2).squeeze(2)
+        #X2 = F.adaptive_max_pool2d(X2, (1,1)).squeeze(2).squeeze(2)
+        #X3 = F.adaptive_max_pool2d(X3, (1,1)).squeeze(2).squeeze(2)
 
-        print(X.size())
-        X = F.relu(X)
-        X = self.fully_connected(X)
+        #if y is not None:
+         #   print('we have labels')
+          #  print(y)
+
+           # print(y.size())
+           # print(X1.size())
+            #X = torch.cat([X1, X2, X3, y],dim=1)
+        #else:
+         #   X = torch.cat([X1, X2, X3],dim=1)
+
+        #print(X.size())
+        #X = F.relu(X)
+        #X = self.fully_connected(X)
         
-        return X
+        return hidden, cell
 
 
-def get_MLP(self, input_size, hidden_layers, output_size, o_activation=None):
-    #creates a network which accepts inputs_size
-    #hidden_layers can be a list which we will iterate over
-    #output_size expected output size of network
-    layers = [('input', nn.Linear(input_size, hidden_layers[0]))]
-    for i, size in enumerate(hidden_layers[1:-1]):
-        layers = layers + [('hidden{}'.format(i), nn.Linear(size, hidden_layers[i+1])), 
-                ('activation{}'.format(i), nn.Softplus())
-                ]
-    layers = layers + [('output', nn.Linear(hidden_layers[-1], output_size))]
-    if not (o_activation is None):
-        layers = layers + [('o_activation', o_activation)]
+    def get_MLP(self, input_size, hidden_layers, output_size, o_activation=None):
+        #creates a network which accepts inputs_size
+        #hidden_layers can be a list which we will iterate over
+        #output_size expected output size of network
+        layers = [('input', nn.Linear(input_size, hidden_layers[0]))]
+        for i, size in enumerate(hidden_layers[1:-1]):
+            layers = layers + [('hidden{}'.format(i), nn.Linear(size, hidden_layers[i+1])),
+                    ('activation{}'.format(i), nn.Softplus())
+                    ]
+        layers = layers + [('output', nn.Linear(hidden_layers[-1], output_size))]
+        if not (o_activation is None):
+            layers = layers + [('o_activation', o_activation)]
 
 
-    MLP = nn.Sequential(OrderedDict(layers))
-    return MLP
+        MLP = nn.Sequential(OrderedDict(layers))
+        return MLP
 
 
 
@@ -213,7 +203,7 @@ class TextSSVAE(nn.Module):
         self.aux_loss_multiplier = aux_loss_multiplier
         try:
             embed_matrix = torch.from_numpy(np.load(embed_model)).float()
-        except (Exception, e):
+        except:
             embed_matrix = None
         # define and instantiate the neural networks representing
         # the paramters of various distributions in the model
@@ -325,9 +315,10 @@ class TextSSVAE(nn.Module):
             # where `decoder` is a neural network
             #inputs = torch.cat([zs, ys], dim=1)
             print('model')
-            loc = self.decoder.forward(zs,lengths, y=ys)
-            
-            pyro.sample("x", dist.Categorical(loc).independent(1), obs=xs)
+
+            decoded_output = self.decode_sentence(zs, cell,  ys, lengths, batch_size)
+
+            pyro.sample("x", dist.Categorical(decoded_output).independent(1), obs=xs)
             # return the loc so we can visualize it later
             return loc
 
@@ -365,7 +356,7 @@ class TextSSVAE(nn.Module):
             #inputs = torch.cat([xs, ys], dim=1)
             print('Guide')
             print(ys.size())
-            output = self.encoder_z.forward(xs, lengths, y=ys)
+            output, cell = self.encoder_z.forward(xs, lengths, y=ys)
             loc = self.encoder_z_mean(output)
             scale = self.encoder_z_var(output)
 
@@ -420,5 +411,21 @@ class TextSSVAE(nn.Module):
     def guide_classify(self, xs, ys=None):
         """
         dummy guide function to accompany model_classify in inference
+
         """
+
+    def decode_sentence(self, init_hidden, ys, length, batch_size):
+        decoder_output = torch.zeros(length, batch_size, self.vocab_size)
+        w2v_model = Word2Vec.load('word2vec.model').wv
+        input = w2v_model.vocab.get('<SOS>').index
+        hidden = torch.cat([init_hidden, ys], dim=1)
+        cell = torch.zeros(1, 1, self.hidden_dim)
+        for t in range(1, length):
+            output, hidden, cell = self.decoder.forward(input, hidden, cell)
+            decoder_output[t] = output
+            top1 = output.max(1)[1]
+            input = top1
+            hidden = torch.cat([hidden, ys], dim=1)
+        return decoder_output
+
 #pass

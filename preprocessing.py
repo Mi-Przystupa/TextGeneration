@@ -21,7 +21,7 @@ class TextPreprocessing:
     def TokenizeData(self, data):
         # assumed data is iterable and returns a tuple of size 1
         # inside the tuple is a string
-        sentences = [[token for token in tokenize(d[0], lowercase=True) if token not in self.sw] \
+        sentences = ['<SOS>'+ [token for token in tokenize(d[0], lowercase=True) if token not in self.sw] \
                 for d in iter(data)]
 
         return sentences
