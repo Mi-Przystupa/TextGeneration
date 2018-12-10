@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 
 class SeqRNN(nn.Module):
     def __init__(self,
-            num_embed,
             embed_dim,
             hidden_size=300,
             num_rnn_layers=1,
             outputs=2,
-            padding_idx=0,
             batch_size=4,
             batchfirst=True,
             dropout = 0.3
@@ -19,23 +19,24 @@ class SeqRNN(nn.Module):
         self.num_rnn_layers = num_rnn_layers
         self.batch_first=batchfirst
         self.use_cuda = torch.cuda.is_available()
-        self.padding_idx=padding_idx
         self.batch_size = batch_size
 
         #Layers
-
-        self.embedding = nn.Embedding(num_embed,embed_dim , padding_idx)
-        self.rnn = nn.LSTM(input_size=embed_dim, hidden_size=hidden_size, \
-                batch_first=batchfirst, num_layers=self.num_rnn_layers, dropout=dropout)
+        self.rnn = nn.GRU(input_size=embed_dim, hidden_size=hidden_size, \
+                batch_first=batchfirst, num_layers=self.num_rnn_layers)
         self.out = nn.Linear(embed_dim, outputs)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, input, hidden, cell, y=None):
-        input = input.unqueeze(0)
-        embedded = self.dropout(self.embedding(input))
-        output, (hidden, cell) = self.rnn(embedded, (hidden, cell))
-        prediction = self.out(output.squeeze(0))
-        return prediction, hidden, cell
+    def forward(self, input, hidden=None, y=None):
+        #input = input.unqueeze(0)
+        self.batch_size = len(input)
+        if hidden is None:
+            hidden = self.initHidden()
+
+        input = self.dropout(input)
+        output, hidden = self.rnn(input, hidden)
+        prediction = self.out(F.relu(output.squeeze(0)))
+        return prediction, hidden
 
     def initHidden(self):
         result = torch.zeros(self.num_rnn_layers, self.batch_size, self.hidden_size)

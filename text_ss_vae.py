@@ -8,7 +8,7 @@ from collections import OrderedDict
 import numpy as np
 from CNNTextEncoder import CNNTextEncoder
 from SeqRNN import SeqRNN
-
+from gensim.models import Word2Vec
 
 def get_MLP(input_size, hidden_layers, output_size, o_activation=None):
     #creates a network which accepts inputs_size
@@ -48,11 +48,10 @@ class TextSSVAE(nn.Module):
             embed_dim=300,
             z_dim=100, kernels=[3,4,5],
             filters=[100,100,100], hidden_size = 300,
-            padding_index = 0,
+            padding_idx = 0,
             num_rnn_layers=1, 
             config_enum=None, use_cuda=False,
             aux_loss_multiplier=None,
-            vocab_size = 100,
             output_size = 2,
             embed_model='word2vec.model.wv.vectors.npy'):
 
@@ -64,7 +63,6 @@ class TextSSVAE(nn.Module):
         self.hidden_size = hidden_size
         self.kernels = kernels
         self.filters = filters
-        self.padding_index = padding_index
         self.num_rnn_layers = num_rnn_layers
 
         #loss and performance parameters
@@ -77,8 +75,16 @@ class TextSSVAE(nn.Module):
             embed_matrix = None
         # define and instantiate the neural networks representing
         # the paramters of various distributions in the model
-        self.vocab_size = vocab_size
+        self.w2v_model = Word2Vec.load('word2vec.model').wv
+        self.padding_idx = padding_idx
+        self.vocab_size = len(self.w2v_model.vectors)
+
         self.output_size = output_size
+        self.embeddings = None
+        self.encoder_y = None
+        self.encoder_z = None
+        self.decoder = None
+
         self.setup_networks(embed_matrix)
 
     def setup_networks(self, embed_matrix):
@@ -94,17 +100,21 @@ class TextSSVAE(nn.Module):
 
         #self.encoder_y = self.get_MLP(self.input_size, 
         #        self.hidden_layers, self.output_size, nn.Softmax(dim=1))
-        self.encoder_y = CNNTextEncoder( self.kernels,
-            self.filters,
-            self.vocab_size,
-            self.embed_dim,
-            p=.5, hidden_dim=hidden_size,
-            padding_idx=0,
-            outputs=2,
-            batch_first=True)
+
+        self.embeddings = nn.Embedding(self.vocab_size, self.embed_dim, padding_idx=0)
 
         if embed_matrix is not None:
-            self.encoder_y.load_embeddings(embed_matrix, self.padding_index)
+            self.embeddings.from_pretrained(embed_matrix, freeze=False,sparse=False)
+        self.encoder_y = CNNTextEncoder( self.kernels,
+            self.filters,
+            self.embed_dim,
+            p=.5,
+            hidden_dim=hidden_size,
+            outputs=2,
+            batch_first=True, input_y=0)
+
+        #if embed_matrix is not None:
+        #    self.encoder_y.load_embeddings(embed_matrix, self.padding_index)
 
 
         # a split in the final layer's size is used for multiple outputs
@@ -112,34 +122,28 @@ class TextSSVAE(nn.Module):
         # e.g. in this network the final output is of size [z_dim,z_dim]
         # to produce loc and scale, and apply different activations [None,Exp] on them
         
-        #self.encoder_z = self.get_MLP(self.input_size + self.output_size,
-        #        self.hidden_layers, 2 * z_dim, nn.Softplus())
         print('encoder_z inputs y is fixed, please fix')
         self.encoder_z = CNNTextEncoder( self.kernels,
             self.filters,
-            self.vocab_size,
             self.embed_dim,
+            p=.5,
             outputs=2 * self.z_dim,
-            p=.5, hidden_dim= hidden_size,
-            padding_idx=self.padding_index,
+             hidden_dim= hidden_size,
             batch_first=True,
             input_y=2)
 
-        if embed_matrix is not None:
-            self.encoder_z.load_embeddings(embed_matrix, self.padding_index)
+        #if embed_matrix is not None:
+        #    self.encoder_z.load_embeddings(embed_matrix, self.padding_index)
 
         self.encoder_z_mean = nn.Linear(2 * z_dim, z_dim)
         self.encoder_z_var = nn.Sequential(
                 nn.Linear(2 * z_dim, z_dim),
                 nn.Softplus(beta=2.7)) #probably should use exp function...oh well
 
-        #self.decoder = self.get_MLP(z_dim + self.output_size, 
-        #        self.hidden_layers, self.input_size, nn.Sigmoid())
-        self.decoder = SeqRNN( self.vocab_size, self.embed_dim,
-            hidden_size=self.hidden_size, num_rnn_layers=1, outputs=self.vocab_size) 
+        self.decoder = SeqRNN(self.embed_dim, hidden_size=self.hidden_size, num_rnn_layers=num_rnn_layers, outputs= self.vocab_size)
 
-        if embed_matrix is not None:
-            self.decoder.load_embeddings(embed_matrix, self.padding_index)
+        #if embed_matrix is not None:
+        #    self.decoder.load_embeddings(embed_matrix, self.padding_index)
 
         # using GPUs for faster training of the networks
         if self.use_cuda:
@@ -186,7 +190,7 @@ class TextSSVAE(nn.Module):
             #inputs = torch.cat([zs, ys], dim=1)
             print('model')
 
-            decoded_output = self.decode_sentence(zs, cell,  ys, lengths, batch_size)
+            decoded_output = self.decode_sentence(zs, ys, lengths, batch_size)
 
             pyro.sample("x", dist.Categorical(decoded_output).independent(1), obs=xs)
             # return the loc so we can visualize it later
@@ -199,16 +203,23 @@ class TextSSVAE(nn.Module):
         q(z|x,y) = normal(loc(x,y),scale(x,y))       # infer handwriting style from an image and the digit
         loc, scale are given by a neural network `encoder_z`
         alpha is given by a neural network `encoder_y`
-        :param xs: a batch of scaled vectors of pixels from an image
+        :param xs: a batch of sequences represented as indices in embedding matrix
+        :param lengths: length of each of the sequences in xs
         :param ys: (optional) a batch of the class labels i.e.
                    the digit corresponding to the image(s)
         :return: None
         """
+
         if self.use_cuda:
             xs = [ x.cuda() for x in xs]
             lengths = lengths.cuda()
             if ys is not None:
                 ys = ys.cuda()
+
+        xs = pad_sequence(xs, batch_first=True,
+                padding_value=self.padding_idx)
+        #Get embeddings
+        xs = self.embeddings(xs)
         # inform Pyro that the variables in the batch of xs, ys are conditionally independent
 
         with pyro.iarange("data"):
@@ -218,7 +229,6 @@ class TextSSVAE(nn.Module):
             # q(y|x) = categorical(alpha(x))
             if ys is None:
                 alpha = self.encoder_y.forward(xs, lengths)
-
                 ys = pyro.sample("y", dist.OneHotCategorical(F.softmax(alpha,dim=1)))
 
             # sample (and score) the latent handwriting-style with the variational
@@ -226,7 +236,7 @@ class TextSSVAE(nn.Module):
             #inputs = torch.cat([xs, ys], dim=1)
             print('Guide')
             print(ys.size())
-            output, cell = self.encoder_z.forward(xs, lengths, y=ys)
+            output = self.encoder_z.forward(xs, lengths, y=ys)
             loc = self.encoder_z_mean(output)
             scale = self.encoder_z_var(output)
 
@@ -284,18 +294,23 @@ class TextSSVAE(nn.Module):
 
         """
 
-    def decode_sentence(self, init_hidden, ys, length, batch_size):
-        decoder_output = torch.zeros(length, batch_size, self.vocab_size)
-        w2v_model = Word2Vec.load('word2vec.model').wv
-        input = w2v_model.vocab.get('<SOS>').index
+    def decode_sentence(self, init_hidden, ys, lengths, batch_size):
+        print(torch.max(lengths))
+        print(batch_size)
+        print(self.vocab_size)
+
+        decoder_output = torch.zeros(batch_size, self.vocab_size, torch.max(lengths))
+        SOS = self.w2v_model.vocab.get('<SOS>').index
+        inputs = torch.cat([self.embeddings(SOS) for _ in lengths], dim=1)
+
         hidden = torch.cat([init_hidden, ys], dim=1)
-        cell = torch.zeros(1, 1, self.hidden_dim)
-        for t in range(1, length):
-            output, hidden, cell = self.decoder.forward(input, hidden, cell)
+        for t in range(1, lengths):
+            output, hidden = self.decoder.forward(inputs, hidden)
             decoder_output[t] = output
             top1 = output.max(1)[1]
-            input = top1
+            inputs = torch.cat([self.embeddings(top1) for _ in lengths], dim= 1)
             hidden = torch.cat([hidden, ys], dim=1)
+
         return decoder_output
 
 #pass

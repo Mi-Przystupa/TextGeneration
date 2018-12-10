@@ -97,7 +97,7 @@ def main():
             embed_dim=300,
             z_dim=200, kernels=[3,4,5],
             filters=[100,100,100], hidden_size = 300,
-            padding_index = 0,
+            padding_idx = 0,
             num_rnn_layers = 1, 
             config_enum="sequential", use_cuda=cuda,
             aux_loss_multiplier=46
