@@ -3,6 +3,7 @@ from gensim.utils import tokenize
 from gensim.models import Word2Vec
 from handleIMDBSentiment import SentimentDataSet
 import numpy as np
+import pandas as pd
 import nltk
 from nltk.corpus import stopwords
 from gensim.parsing.preprocessing import  remove_stopwords
@@ -98,32 +99,47 @@ class TextPreprocessing:
             print('invalid representation returning data unchanged')
             return X
 
-
-
-
-if __name__ == "__main__":
-    # for debugging
-    import pandas as pd
-    #data = SentimentDataSet(withLabel=True)
-    #dataset = [d for d in data]
-    #dataset = {'review': [d[0] for d in dataset], 'label': [d[1] for d in dataset]}
-    #pd.DataFrame.from_dict(dataset).to_csv('train.csv')
-
-    data = SentimentDataSet(withLabel=True, csv_file='train.csv')
-
-    stopwords = ['<br />']
-    preprocessing = TextPreprocessing('word2vec', data, stop_words=stopwords, filter_top_n=True)
-
-    indices = preprocessing.ConvertDataToIndices(preprocessing.corpus)
-    #print(len(indices))
-    print(indices[1])
+def FilterEntriesByLength(data,indices, savename, length=100):
     sentence_tokens = []
     all_labels = [d[1] for d in data]
     sentence_labels = []
     for i, index_sentence in enumerate(indices):
-        if len(index_sentence) <= 100:
+        if len(index_sentence) <= length:
             sentence_tokens.append(index_sentence)
             sentence_labels.append(all_labels[i])
 
     dataset = {'review_tokens': sentence_tokens, 'label': sentence_labels}
-    np.save('tokenized_dataaset', dataset)
+    np.save(savename, dataset)
+
+def CreateCSV(data, csv_file_name):
+    dataset = [d for d in data]
+    dataset = {'review': [d[0] for d in dataset], 'label': [d[1] for d in dataset]}
+    if '.csv' not in csv_file_name:
+        csv_file_name = csv_file_name + '.csv'
+    pd.DataFrame.from_dict(dataset).to_csv(csv_file_name)
+
+
+if __name__ == "__main__":
+    # for debugging
+    train_data = SentimentDataSet(withLabel=True)
+    CreateCSV(train_data, 'train.csv')
+    test_data = SentimentDataSet(withLabel=True, path='../aclImdb/test/')
+    CreateCSV(test_data, 'test.csv')
+
+    train_data = SentimentDataSet(withLabel=True, csv_file='train.csv')
+    test_data = SentimentDataSet(withLabel=True,csv_file='test.csv')
+
+    stopwords = ['<br />']
+    preprocessing = TextPreprocessing('word2vec', train_data, stop_words=stopwords, filter_top_n=True)
+
+
+    train_indices = preprocessing.ConvertDataToIndices(preprocessing.corpus)
+
+    test_tokens = preprocessing.TokenizeData(test_data)
+    test_indices = preprocessing.ConvertDataToIndices(test_tokens)
+
+    FilterEntriesByLength(train_data, train_indices, 'train_data_tokenized')
+    FilterEntriesByLength(test_data, test_indices, 'test_data_tokenized')
+
+
+

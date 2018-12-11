@@ -193,8 +193,10 @@ class TextSSVAE(nn.Module):
 
             xs = pad_sequence(xs, batch_first=True,
                 padding_value=self.padding_idx)
+            if self.use_cuda:
+                xs = xs.cuda()
             xs = xs[:,0:15]
-            pyro.sample("x", dist.Categorical(decoded_output).independent(1), obs=xs)
+            pyro.sample("x", dist.Categorical(logits=decoded_output).independent(1), obs=xs)
             # return the loc so we can visualize it later
             return decoded_output
 
@@ -253,6 +255,9 @@ class TextSSVAE(nn.Module):
         """
         # use the trained model q(y|x) = categorical(alpha(x))
         # compute all class probabilities for the image(s)
+        xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
+        #Get embeddings
+        xs = self.embeddings(xs)
         if self.use_cuda:
             xs = xs.cuda()
             lengths = lengths.cuda()
@@ -278,7 +283,7 @@ class TextSSVAE(nn.Module):
         #Get embeddings
         xs = self.embeddings(xs)
         if self.use_cuda:
-            #xs = xs.cuda()
+            xs = xs.cuda()
             lengths = lengths.cuda()
             if ys is not None:
                 ys = ys.cuda()
@@ -307,6 +312,10 @@ class TextSSVAE(nn.Module):
         value = self.w2v_model.vocab.get('<SOS>')
         SOS = value.index
         inputs = torch.tensor([[SOS] for _ in lengths])
+        if self.use_cuda:
+            inputs = inputs.cuda()
+            decoder_output = decoder_output.cuda()
+
         inputs = self.embeddings(inputs)
 
         hidden = torch.cat([init_hidden, ys], dim=1)
