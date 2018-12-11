@@ -171,7 +171,7 @@ class TextSSVAE(nn.Module):
         with pyro.iarange("data"):
 
             # sample the handwriting style from the constant prior distribution
-            print('original used new_zeros...not sure wut it is')
+            #print('original used new_zeros...not sure wut it is')
             prior_loc = torch.zeros([batch_size, self.z_dim])
             prior_scale = torch.ones([batch_size, self.z_dim])
             if self.use_cuda:

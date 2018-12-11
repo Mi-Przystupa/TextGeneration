@@ -8,9 +8,10 @@ import pyro.distributions as dist
 from pyro.contrib.examples.util import print_and_log
 from pyro.infer import SVI, JitTrace_ELBO, JitTraceEnum_ELBO, Trace_ELBO, TraceEnum_ELBO, config_enumerate
 from pyro.optim import Adam
-from mnist_cached import MNISTCached, mkdir_p, setup_data_loaders
+#from mnist_cached import MNISTCached, mkdir_p, setup_data_loaders
 from text_ss_vae import TextSSVAE
 from IMDB_cached_New import setup_data_loaders, IMDBCached
+import pandas as pd
 
 def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
     """
@@ -41,10 +42,16 @@ def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
 
         # extract the corresponding batch
         if is_supervised:
-            (xs, lengths, ys) = next(sup_iter)
-            ctr_sup += 1
+            try:
+                (xs, lengths, ys) = next(sup_iter)
+                ctr_sup += 1
+            except StopIteration:
+                continue
         else:
-            (xs, lengths, ys) = next(unsup_iter)
+            try:
+                (xs, lengths, ys) = next(unsup_iter)
+            except StopIteration:
+                break
 
         # run the inference for each loss with supervised or un-supervised
         # data as arguments
@@ -67,9 +74,9 @@ def get_accuracy(data_loader, classifier_fn, batch_size):
     predictions, actuals = [], []
 
     # use the appropriate data loader
-    for (xs, ys) in data_loader:
+    for (xs,lengths, ys) in data_loader:
         # use classification function to compute all predictions for each batch
-        predictions.append(classifier_fn(xs))
+        predictions.append(classifier_fn(xs,lengths))
         actuals.append(ys)
 
     # compute the number of accurate predictions
@@ -77,11 +84,51 @@ def get_accuracy(data_loader, classifier_fn, batch_size):
     for pred, act in zip(predictions, actuals):
         for i in range(pred.size(0)):
             v = torch.sum(pred[i] == act[i])
-            accurate_preds += (v.item() == 10)
+            accurate_preds += (v.item() == 2)
 
     # calculate the accuracy between 0 and 1
     accuracy = (accurate_preds * 1.0) / (len(predictions) * batch_size)
     return accuracy
+
+def create_sentences(indicies, word_model,word_limit=100):
+    sentences = []
+    for entry in indicies:
+        sentence = ""
+        for i, e in enumerate(entry):
+            if i > word_limit:
+                break
+            sentence = sentence + " " + word_model.index2word[e]
+        sentences = sentences + [sentence]
+    return sentences
+
+
+def generateSentences(data_loader, generator_fn, word_model, sentiment=0):
+    """
+    compute the accuracy over the supervised training set or the testing set
+    """
+    predictions, actuals = [], []
+
+    # use the appropriate data loader
+    for (xs,lengths, ys) in data_loader:
+
+        conditioned_feature = [torch.zeros(2) for i in lengths]
+        for i, e in enumerate(conditioned_feature):
+            conditioned_feature[i][sentiment] = 1
+        # use classification function to compute all predictions for each batch
+        generated = generator_fn(xs, lengths,conditioned_feature)
+        generated = pyro.sample("generated_sentence", dist.Categorical(logits=generated).independent(1))
+        predictions.append(generated)
+        actuals.append(xs)
+
+    # compute the number of accurate predictions
+    sentences = []
+    for pred, act in zip(predictions, actuals):
+        pred_sentence = create_sentences(pred, word_model, word_limit=15)
+        act_sentence = create_sentences(act, word_model, word_limit=15)
+        sentences = {'pred': pred_sentence, 'act': act_sentence}
+        break
+
+    return sentences
 
 
 def main():
@@ -91,7 +138,7 @@ def main():
     :return: None
     """
     pyro.set_rng_seed(12345)
-    cuda = False
+    cuda = True
     # batch_size: number of images (and labels) to be considered in a batch
     ss_vae = TextSSVAE(
             embed_dim=300,
@@ -101,6 +148,7 @@ def main():
             config_enum="sequential", use_cuda=cuda,
             aux_loss_multiplier=46
             )
+    ss_vae = ss_vae.cuda()
 
     # setup the optimizer
     adam_params = {"lr": 1e-3, "betas": (0.9, 0.999)}
@@ -128,7 +176,7 @@ def main():
     try:
         # setup the logger if a filename is provided
         logger = open('./tmp.log', "w") if './tmp.log' else None
-        data_loaders = setup_data_loaders(IMDBCached, False, batch_size=128, sup_num=3000)
+        data_loaders = setup_data_loaders(IMDBCached, cuda, batch_size=128, sup_num=3000)
 
         # how often would a supervised batch be encountered during inference
         # e.g. if sup_num is 3000, we would have every 16th = int(50000/3000) batch supervised
@@ -146,7 +194,6 @@ def main():
         # run inference for a certain number of epochs
         num_epochs = 10
         for i in range(0, num_epochs):
-
             # get the losses for an epoch
             epoch_losses_sup, epoch_losses_unsup = \
                 run_inference_for_epoch(data_loaders, losses, periodic_interval_batches)
@@ -181,6 +228,11 @@ def main():
         print_and_log(logger, "best validation accuracy {} corresponding testing accuracy {} "
                       "last testing accuracy {}".format(best_valid_acc, corresponding_test_acc, final_test_accuracy))
 
+        neg_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=0)
+        pos_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=1)
+
+        pd.DataFrame.from_dict(pos_sentences).to_csv('positive_sentences.csv')
+        pd.DataFrame.from_dict(neg_sentences).to_csv('negative_sentences.csv')
     finally:
         # close the logger file object if we opened it earlier
         logfile = True

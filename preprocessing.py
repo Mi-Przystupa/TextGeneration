@@ -121,10 +121,10 @@ def CreateCSV(data, csv_file_name):
 
 if __name__ == "__main__":
     # for debugging
-    train_data = SentimentDataSet(withLabel=True)
-    CreateCSV(train_data, 'train.csv')
-    test_data = SentimentDataSet(withLabel=True, path='../aclImdb/test/')
-    CreateCSV(test_data, 'test.csv')
+    #train_data = SentimentDataSet(withLabel=True)
+    #CreateCSV(train_data, 'train.csv')
+    #test_data = SentimentDataSet(withLabel=True, path='../aclImdb/test/')
+    #CreateCSV(test_data, 'test.csv')
 
     train_data = SentimentDataSet(withLabel=True, csv_file='train.csv')
     test_data = SentimentDataSet(withLabel=True,csv_file='test.csv')
