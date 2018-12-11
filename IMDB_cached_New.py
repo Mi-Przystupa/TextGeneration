@@ -10,17 +10,27 @@ from torchvision.datasets import MNIST
 
 class TextDataSet(torch.utils.data.Dataset):
 
-    def __init__(self, train = True, root='tokenized_dataaset.npy'):
+    def __init__(self, train = True,root='./'):# root='tokenized_dataaset.npy'):
         print('load data')
-        data = np.load(root).item()
-        self.train_data = data['review_tokens']
-        self.train_labels = data['label']
+        self.train = train
+        train_data = np.load( root + 'train_data_tokenized.npy').item()
+        test_data = np.load(root + 'test_data_tokenized.npy').item()
+        self.train_data = train_data['review_tokens']
+        self.train_labels = train_data['label']
+        self.test_data = test_data['review_tokens']
+        self.test_labels = test_data['label']
 
     def __len__(self):
-        return len(self.train_data)
+        if self.train:
+            return len(self.train_data)
+        else:
+            return len(self.test_data)
 
     def __getitem__(self, index):
-        return self.train_data[index], self.train_labels[index]
+        if self.train:
+            return self.train_data[index], self.train_labels[index]
+        else:
+            return self.test_data[index], self.test_labels[index]
 
 
 
@@ -180,12 +190,12 @@ class IMDBCached(TextDataSet):
             else:
                 self.train_data, self.train_labels = IMDBCached.data_valid, IMDBCached.labels_valid
 
-        #else:
+        else:
             # transform the testing data if transformations are provided
-         #   if transform is not None:
-          #      self.test_data = (transform(self.test_data.float()))
-           # if target_transform is not None:
-            #    self.test_labels = (target_transform(self.test_labels))
+            #if transform is not None:
+             #   self.test_data = (transform(self.test_data.float()))
+            if target_transform is not None:
+                self.test_labels = (target_transform(self.test_labels,use_cuda))
 
     def __getitem__(self, index):
         """

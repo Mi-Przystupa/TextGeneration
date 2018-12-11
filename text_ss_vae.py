@@ -68,15 +68,16 @@ class TextSSVAE(nn.Module):
         self.allow_broadcast = config_enum == 'parallel'
         self.use_cuda = use_cuda
         self.aux_loss_multiplier = aux_loss_multiplier
-        try:
-            embed_matrix = torch.from_numpy(np.load(embed_model)).float()
-        except:
-            embed_matrix = None
-        # define and instantiate the neural networks representing
-        # the paramters of various distributions in the model
         self.w2v_model = Word2Vec.load('word2vec.model').wv
         self.padding_idx = self.w2v_model.vocab.get('<PADDING>').index
         self.vocab_size = len(self.w2v_model.vectors)
+
+        try:
+            embed_matrix = torch.from_numpy(np.load(embed_model)).float()
+        except:
+            embed_matrix = torch.from_numpy(self.w2v_model.syn0).float()
+        # define and instantiate the neural networks representing
+        # the paramters of various distributions in the model
 
         self.output_size = output_size
         self.embeddings = None

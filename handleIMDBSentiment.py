@@ -49,7 +49,11 @@ class SentimentDataSet:
                 X, y = self.csv_iter()
             else:
                 X, y = self.path_iter()
-            X = '<SOS> ' + X + ' <EOS>'
+            if '<SOS>' not in X:
+                X = '<SOS> ' + X
+            if '<EOS>' not in X:
+                X = X + ' <EOS>'
+
             self.index += 1
             if self.withLabel:
                 return [X, y]
