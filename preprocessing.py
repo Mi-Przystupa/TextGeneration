@@ -3,14 +3,18 @@ from gensim.utils import tokenize
 from gensim.models import Word2Vec
 from handleIMDBSentiment import SentimentDataSet
 import numpy as np
+import nltk
+from nltk.corpus import stopwords
+from gensim.parsing.preprocessing import  remove_stopwords
 choices = ['word2vec']
-
+nltk.download('stopwords')
 
 class TextPreprocessing:
-    def __init__(self, representation, data, stopwords=[],filter_top_n=0):
+    def __init__(self, representation, data, stop_words=[],filter_top_n=0):
         
         self.rep = representation.lower()
-        self.sw = set(stopwords)
+        stop_words = nltk.corpus.stopwords.words('english')
+        self.sw = set(stop_words)
         self.filter_top_n = filter_top_n
 
         if (self.rep == 'word2vec'):
@@ -22,8 +26,9 @@ class TextPreprocessing:
     def TokenizeData(self, data):
         # assumed data is iterable and returns a tuple of size 1
         # inside the tuple is a string
-        sentences = [[token for token in tokenize(d[0], lowercase=True) if token not in self.sw] \
-                for d in iter(data)]
+        # my_sentences = [s[0] for s in data if len(s[0]) < 60]
+        sentences = [[token for token in tokenize(remove_stopwords(d[0]), lowercase=True) if token not in self.sw] \
+                for d in data]
 
         return sentences
 
@@ -38,7 +43,7 @@ class TextPreprocessing:
         return word_counts
 
     def GetTopN(self, word_counts):
-        topN =
+        return null
 
 
     def ReplaceTopNWithUNKNOWN(self):
@@ -58,8 +63,8 @@ class TextPreprocessing:
 
     def GetWord2Vec(self, data):
         self.corpus = self.TokenizeData(data)
-        self.corpus = self.ReplaceTopNWithUNKNOWN()
-
+        # self.corpus = [c for c in self.corpus if len(c) < 100]
+        # self.corpus = self.ReplaceTopNWithUNKNOWN()
 
         try:
             model = Word2Vec.load('word2vec.model')
@@ -105,10 +110,18 @@ if __name__ == "__main__":
     data = SentimentDataSet(withLabel=True, csv_file='train.csv')
 
     stopwords = ['<br />']
-    preprocessing = TextPreprocessing('word2vec', data,stopwords=stopwords, filter_top_n=True)
+    preprocessing = TextPreprocessing('word2vec', data, stop_words=stopwords, filter_top_n=True)
 
     indices = preprocessing.ConvertDataToIndices(preprocessing.corpus)
     #print(len(indices))
     print(indices[1])
-    dataset = {'review_tokens': [i for i in indices], 'label': [d[1] for d in data]}
+    sentence_tokens = []
+    all_labels = [d[1] for d in data]
+    sentence_labels = []
+    for i, index_sentence in enumerate(indices):
+        if len(index_sentence) <= 100:
+            sentence_tokens.append(index_sentence)
+            sentence_labels.append(all_labels[i])
+
+    dataset = {'review_tokens': sentence_tokens, 'label': sentence_labels}
     np.save('tokenized_dataaset', dataset)

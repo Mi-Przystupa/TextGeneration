@@ -56,3 +56,7 @@ class SentimentDataSet:
             return [X]
         else:
             raise StopIteration
+        
+    def next(self):
+        return self.__next__()
+        
