@@ -164,8 +164,6 @@ class TextSSVAE(nn.Module):
         if self.use_cuda:
             #xs = xs.cuda()
             lengths = lengths.cuda()
-            if ys is not None:
-                ys = ys.cuda()
         # register this pytorch module and all of its sub-modules with pyro
         pyro.module("text_ss_vae", self)
 
@@ -176,13 +174,22 @@ class TextSSVAE(nn.Module):
             print('original used new_zeros...not sure wut it is')
             prior_loc = torch.zeros([batch_size, self.z_dim])
             prior_scale = torch.ones([batch_size, self.z_dim])
+            if self.use_cuda:
+                prior_loc = prior_loc.cuda()
+                prior_scale = prior_scale.cuda()
+
             zs = pyro.sample("z", dist.Normal(prior_loc, prior_scale).independent(1))
 
             # if the label y (which digit to write) is supervised, sample from the
             # constant prior, otherwise, observe the value (i.e. score it against the constant prior)
             alpha_prior = torch.ones([batch_size, self.output_size]) / (1.0 * self.output_size)
+            if self.use_cuda:
+                alpha_prior = alpha_prior.cuda()
+
             if ys is not None:
                 ys = torch.stack(ys)
+                if self.use_cuda:
+                    ys = ys.cuda()
             ys = pyro.sample("y", dist.OneHotCategorical(alpha_prior), obs=ys)
 
             # finally, score the image (x) using the handwriting style (z) and
@@ -192,8 +199,8 @@ class TextSSVAE(nn.Module):
 
             decoded_output = self.decode_sentence(zs, ys, lengths, batch_size)
 
-            xs = pad_sequence(xs, batch_first=True,
-                padding_value=self.padding_idx)
+            xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
+
             if self.use_cuda:
                 xs = xs.cuda()
             xs = xs[:,0:15]
@@ -214,15 +221,11 @@ class TextSSVAE(nn.Module):
                    the digit corresponding to the image(s)
         :return: None
         """
-
+        xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
         if self.use_cuda:
-            xs = [ x.cuda() for x in xs]
+            xs = xs.cuda()
             lengths = lengths.cuda()
-            if ys is not None:
-                ys = ys.cuda()
 
-        xs = pad_sequence(xs, batch_first=True,
-                padding_value=self.padding_idx)
         #Get embeddings
         xs = self.embeddings(xs)
         # inform Pyro that the variables in the batch of xs, ys are conditionally independent
@@ -237,6 +240,8 @@ class TextSSVAE(nn.Module):
                 ys = pyro.sample("y", dist.OneHotCategorical(F.softmax(alpha,dim=1)))
             else:
                 ys = torch.stack(ys)
+                if self.use_cuda:
+                    ys = ys.cuda()
 
             # sample (and score) the latent handwriting-style with the variational
             # distribution q(z|x,y) = normal(loc(x,y),scale(x,y))
@@ -257,11 +262,13 @@ class TextSSVAE(nn.Module):
         # use the trained model q(y|x) = categorical(alpha(x))
         # compute all class probabilities for the image(s)
         xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
-        #Get embeddings
-        xs = self.embeddings(xs)
         if self.use_cuda:
             xs = xs.cuda()
             lengths = lengths.cuda()
+
+        #Get embeddings
+        xs = self.embeddings(xs)
+
         alpha = self.encoder_y.forward(xs,lengths)
 
         # get the index (digit) that corresponds to
@@ -281,13 +288,15 @@ class TextSSVAE(nn.Module):
         xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
         if ys is not None:
             ys = torch.stack(ys)
-        #Get embeddings
-        xs = self.embeddings(xs)
+
         if self.use_cuda:
             xs = xs.cuda()
             lengths = lengths.cuda()
             if ys is not None:
                 ys = ys.cuda()
+        #Get embeddings
+        xs = self.embeddings(xs)
+
         # register all pytorch (sub)modules with pyro
         pyro.module("text_ss_vae", self)
 
