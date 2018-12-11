@@ -298,13 +298,16 @@ class TextSSVAE(nn.Module):
         print(torch.max(lengths))
         print(batch_size)
         print(self.vocab_size)
+        length_hack = 15
 
-        decoder_output = torch.zeros(batch_size, self.vocab_size, torch.max(lengths))
-        SOS = self.w2v_model.vocab.get('<SOS>').index
+        decoder_output = torch.zeros(batch_size, self.vocab_size, length_hack) #torch.max(lengths))
+
+        value = self.w2v_model.vocab.get('<SOS>')
+        SOS = value.index
         inputs = torch.cat([self.embeddings(SOS) for _ in lengths], dim=1)
 
         hidden = torch.cat([init_hidden, ys], dim=1)
-        for t in range(1, lengths):
+        for t in range(1, length_hack):
             output, hidden = self.decoder.forward(inputs, hidden)
             decoder_output[t] = output
             top1 = output.max(1)[1]

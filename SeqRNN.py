@@ -35,7 +35,9 @@ class SeqRNN(nn.Module):
 
         input = self.dropout(input)
         output, hidden = self.rnn(input, hidden)
+
         prediction = self.out(F.relu(output.squeeze(0)))
+
         return prediction, hidden
 
     def initHidden(self):
