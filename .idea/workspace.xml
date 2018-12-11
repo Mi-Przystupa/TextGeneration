@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="e5f04079-eb49-44e2-ad74-1a5df2dd203b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/SeqRNN.py" beforeDir="false" afterPath="$PROJECT_DIR$/SeqRNN.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/preprocessing.py" beforeDir="false" afterPath="$PROJECT_DIR$/preprocessing.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/text_ss_vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/text_ss_vae.py" afterDir="false" />
     </list>
@@ -19,11 +20,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/text_ss_vae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="560">
-              <caret line="305" selection-start-line="305" selection-end-line="305" />
+            <state relative-caret-position="165">
+              <caret line="279" column="12" selection-start-line="279" selection-start-column="12" selection-end-line="279" selection-end-column="12" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -34,8 +35,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/CNNTextEncoder.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="450">
-              <caret line="63" selection-start-line="63" selection-end-line="63" />
+            <state relative-caret-position="159">
+              <caret line="47" selection-start-line="47" selection-end-line="47" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
               </folding>
@@ -46,8 +47,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/SeqRNN.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="375">
-              <caret line="25" column="38" lean-forward="true" selection-start-line="25" selection-start-column="38" selection-end-line="25" selection-end-column="38" />
+            <state relative-caret-position="301">
+              <caret line="32" selection-start-line="32" selection-end-line="32" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -58,8 +59,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/ss_vae.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="390">
-              <caret line="30" column="13" selection-start-line="30" selection-start-column="13" selection-end-line="30" selection-end-column="13" />
+            <state relative-caret-position="825">
+              <caret line="185" column="29" selection-start-line="185" selection-start-column="29" selection-end-line="185" selection-end-column="29" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -80,13 +81,28 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/handleIMDBSentiment.py">
+        <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/messenger.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="390">
-              <caret line="51" column="39" selection-start-line="51" selection-start-column="39" selection-end-line="51" selection-end-column="39" />
-              <folding>
-                <element signature="e#0#11#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="15">
+              <caret line="26" selection-start-line="26" selection-end-line="26" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/trace_messenger.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="411">
+              <caret line="202" selection-start-line="202" selection-end-line="202" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/infer/trace_elbo.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="164">
+              <caret line="54" selection-start-line="54" selection-end-line="54" />
             </state>
           </provider>
         </entry>
@@ -94,8 +110,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="195">
-              <caret line="55" selection-start-line="55" selection-end-line="55" />
+            <state relative-caret-position="156">
+              <caret line="43" selection-start-line="43" selection-end-line="43" />
               <folding>
                 <element signature="e#0#15#0" expanded="true" />
               </folding>
@@ -103,11 +119,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/preprocessing.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="613">
-              <caret line="103" selection-start-line="103" selection-end-line="103" />
+            <state relative-caret-position="-285">
+              <caret line="77" column="44" selection-start-line="77" selection-start-column="44" selection-end-line="77" selection-end-column="44" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
               </folding>
@@ -132,16 +148,16 @@
       <list>
         <option value="$PROJECT_DIR$/IMDB_cached_New.py" />
         <option value="$PROJECT_DIR$/ss_vae.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/CNNTextEncoder.py" />
         <option value="$PROJECT_DIR$/preprocessing.py" />
+        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/SeqRNN.py" />
         <option value="$PROJECT_DIR$/text_ss_vae.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="296" />
+    <option name="x" value="313" />
     <option name="y" value="-4" />
     <option name="width" value="1480" />
     <option name="height" value="825" />
@@ -280,8 +296,8 @@
       <window_info id="Favorites" order="2" sideWeight="0.5005225" side_tool="true" weight="0.18076286" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.33437827" />
-      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.32079414" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.44514108" />
+      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.4555904" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -329,19 +345,24 @@
           <option name="timeStamp" value="5" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/main.py</url>
-          <line>43</line>
-          <option name="timeStamp" value="12" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/ss_vae.py</url>
           <line>164</line>
           <option name="timeStamp" value="15" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/preprocessing.py</url>
+          <line>84</line>
+          <option name="timeStamp" value="31" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/text_ss_vae.py</url>
-          <line>304</line>
-          <option name="timeStamp" value="29" />
+          <line>296</line>
+          <option name="timeStamp" value="53" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/text_ss_vae.py</url>
+          <line>292</line>
+          <option name="timeStamp" value="54" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -417,10 +438,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/trace_messenger.py">
+    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/handlers.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2715">
-          <caret line="185" selection-start-line="185" selection-end-line="185" />
+        <state relative-caret-position="555">
+          <caret line="444" selection-start-line="444" selection-end-line="444" />
         </state>
       </provider>
     </entry>
@@ -431,24 +452,40 @@
         </state>
       </provider>
     </entry>
-    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/messenger.py">
+    <entry file="file://$PROJECT_DIR$/handleIMDBSentiment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="360">
-          <caret line="26" selection-start-line="26" selection-end-line="26" />
+        <state relative-caret-position="330">
+          <caret line="51" column="38" selection-start-line="51" selection-start-column="38" selection-end-line="51" selection-end-column="38" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/handlers.py">
+    <entry file="file://$PROJECT_DIR$/preprocessing.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="555">
-          <caret line="444" selection-start-line="444" selection-end-line="444" />
+        <state relative-caret-position="-285">
+          <caret line="77" column="44" selection-start-line="77" selection-start-column="44" selection-end-line="77" selection-end-column="44" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/SeqRNN.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="301">
+          <caret line="32" selection-start-line="32" selection-end-line="32" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/ss_vae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="30" column="13" selection-start-line="30" selection-start-column="13" selection-end-line="30" selection-end-column="13" />
+        <state relative-caret-position="825">
+          <caret line="185" column="29" selection-start-line="185" selection-start-column="29" selection-end-line="185" selection-end-column="29" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
@@ -457,8 +494,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="55" selection-start-line="55" selection-end-line="55" />
+        <state relative-caret-position="156">
+          <caret line="43" selection-start-line="43" selection-end-line="43" />
           <folding>
             <element signature="e#0#15#0" expanded="true" />
           </folding>
@@ -477,50 +514,41 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/CNNTextEncoder.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="450">
-          <caret line="63" selection-start-line="63" selection-end-line="63" />
+        <state relative-caret-position="159">
+          <caret line="47" selection-start-line="47" selection-end-line="47" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/handleIMDBSentiment.py">
+    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/messenger.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="51" column="39" selection-start-line="51" selection-start-column="39" selection-end-line="51" selection-end-column="39" />
-          <folding>
-            <element signature="e#0#11#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="15">
+          <caret line="26" selection-start-line="26" selection-end-line="26" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/SeqRNN.py">
+    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/poutine/trace_messenger.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="375">
-          <caret line="25" column="38" lean-forward="true" selection-start-line="25" selection-start-column="38" selection-end-line="25" selection-end-column="38" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="411">
+          <caret line="202" selection-start-line="202" selection-end-line="202" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/local/lib/python3.5/dist-packages/pyro/infer/trace_elbo.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="164">
+          <caret line="54" selection-start-line="54" selection-end-line="54" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/text_ss_vae.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="560">
-          <caret line="305" selection-start-line="305" selection-end-line="305" />
+        <state relative-caret-position="165">
+          <caret line="279" column="12" selection-start-line="279" selection-start-column="12" selection-end-line="279" selection-end-column="12" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/preprocessing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="613">
-          <caret line="103" selection-start-line="103" selection-end-line="103" />
-          <folding>
-            <element signature="e#0#13#0" expanded="true" />
           </folding>
         </state>
       </provider>

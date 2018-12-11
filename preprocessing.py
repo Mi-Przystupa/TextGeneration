@@ -74,6 +74,8 @@ class TextPreprocessing:
         #a 0 vector? 
         model.wv.add('<UNKNOWN>', np.random.rand(300), replace=False)
         model.wv.add('<PADDING>', np.zeros(300), replace=True)
+        model.wv.add('<SOS>', np.ones(300), replace=False)
+        model.wv.add('<EOS>', np.ones(300) * -1, replace=False)
         return model
 
 

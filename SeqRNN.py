@@ -12,23 +12,24 @@ class SeqRNN(nn.Module):
             outputs=2,
             batch_size=4,
             batchfirst=True,
-            dropout = 0.3
+            dropout = 0.3,
+            y_inputs=0
             ):
         super(SeqRNN, self).__init__()
         self.hidden_size = hidden_size
+        self.y_inputs = y_inputs
         self.num_rnn_layers = num_rnn_layers
         self.batch_first=batchfirst
         self.use_cuda = torch.cuda.is_available()
         self.batch_size = batch_size
 
         #Layers
-        self.rnn = nn.GRU(input_size=embed_dim, hidden_size=hidden_size, \
+        self.rnn = nn.GRU(input_size=embed_dim, hidden_size=hidden_size + y_inputs, \
                 batch_first=batchfirst, num_layers=self.num_rnn_layers)
-        self.out = nn.Linear(embed_dim, outputs)
+        self.out = nn.Linear(hidden_size + y_inputs, outputs)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, input, hidden=None, y=None):
-        #input = input.unqueeze(0)
         self.batch_size = len(input)
         if hidden is None:
             hidden = self.initHidden()
@@ -41,7 +42,7 @@ class SeqRNN(nn.Module):
         return prediction, hidden
 
     def initHidden(self):
-        result = torch.zeros(self.num_rnn_layers, self.batch_size, self.hidden_size)
+        result = torch.zeros(self.num_rnn_layers, self.batch_size, self.hidden_size + self.y_inputs)
         if self.use_cuda:
             return result.cuda()
         else:
