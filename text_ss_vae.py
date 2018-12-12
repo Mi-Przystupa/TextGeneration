@@ -119,7 +119,7 @@ class TextSSVAE(nn.Module):
         self.encoder_y = CNNTextEncoder( self.kernels,
             self.filters,
             self.embed_dim,
-            p=0.00,
+            p=0.4,
             hidden_dim=hidden_size,
             outputs=2,
             batch_first=True, input_y=0, output_activation=F.softmax)
@@ -133,7 +133,7 @@ class TextSSVAE(nn.Module):
         self.encoder_z = CNNTextEncoder(self.kernels,
             self.filters,
             self.embed_dim,
-            p=0.00,
+            p=0.4,
             outputs= self.z_dim,
              hidden_dim= hidden_size,
             batch_first=True,
@@ -144,7 +144,7 @@ class TextSSVAE(nn.Module):
                 nn.Linear(z_dim, z_dim),
                 Exp()) #probably should use exp function...oh well
 
-        self.decoder = SeqRNN(self.embed_dim, hidden_size=self.hidden_size, num_rnn_layers=num_rnn_layers, outputs= self.vocab_size, y_inputs=2)
+        self.decoder = SeqRNN(self.embed_dim, hidden_size=self.hidden_size, num_rnn_layers=num_rnn_layers, outputs= self.vocab_size, dropout=0.4, y_inputs=2)
 
         # using GPUs for faster training of the networks
         if self.use_cuda:
@@ -332,8 +332,6 @@ class TextSSVAE(nn.Module):
             decoder_output = decoder_output.cuda()
 
         inputs = self.embeddings(inputs)
-        if len(ys.size()) > 2:
-            print('break point')
 
         hidden = torch.cat([init_hidden, ys], dim=1)
         hidden = hidden.unsqueeze(0)

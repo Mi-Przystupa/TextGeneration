@@ -220,7 +220,7 @@ def main():
             str_loss_unsup = " ".join(map(str, avg_epoch_losses_unsup))
 
             str_print = "{} epoch: avg losses {}".format(i, "{} {}".format(str_loss_sup, str_loss_unsup))
-
+            ss_vae.eval()
             validation_accuracy = get_accuracy(data_loaders["valid"], ss_vae.classifier, batch_size)
             str_print += " validation accuracy {}".format(validation_accuracy)
 
@@ -228,7 +228,7 @@ def main():
             # to make any decisions during training
             test_accuracy = get_accuracy(data_loaders["test"], ss_vae.classifier, batch_size)
             str_print += " test accuracy {}".format(test_accuracy)
-
+            ss_vae.train()
             torch.save(ss_vae.state_dict(), 'ss_vae_model.pth')
             pyro.get_param_store().save('pyro_param_store.store')
 
@@ -249,6 +249,7 @@ def main():
         
         np.save("avg_loss_sup", np.asarray(sup_loss_log))
         np.save("avg_loss_unsup", np.asarray(unsup_loss_log))
+        ss_vae.eval()
         final_test_accuracy = get_accuracy(data_loaders["test"], ss_vae.classifier, batch_size)
         print_and_log(logger, "best validation accuracy {} corresponding testing accuracy {} "
                       "last testing accuracy {}".format(best_valid_acc, corresponding_test_acc, final_test_accuracy))
