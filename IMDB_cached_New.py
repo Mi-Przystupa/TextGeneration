@@ -94,13 +94,14 @@ def split_sup_unsup_valid(unsup_x, unsup_y, sup_x, sup_y, validation_num=10000):
     :param validation_num: what number of last examples to use for validation
     :return: splits of data by sup_num number of supervised examples
     """
-
+    idx = np.random.permutation(len(sup_x))
+    shuffled_sup_x, shuffled_sup_y = sup_x[idx], sup_y[idx]
     # validation set is the last 10,000 examples
-    X_valid = sup_x[-validation_num:]
-    y_valid = sup_y[-validation_num:]
+    X_valid = shuffled_sup_x[-validation_num:]
+    y_valid = shuffled_sup_y[-validation_num:]
 
-    X_sup = sup_x[0:-validation_num]
-    y_sup = sup_y[0:-validation_num]
+    X_sup = shuffled_sup_x[0:-validation_num]
+    y_sup = shuffled_sup_y[0:-validation_num]
 
     return X_sup, y_sup, unsup_x, unsup_y, X_valid, y_valid
 
@@ -127,12 +128,12 @@ class IMDBCached(TextDataSet):
     """
 
     # static class variables for caching training data
-    train_data_size = 50000
+    # train_data_size = 50000
     train_data_sup, train_labels_sup = None, None
     train_data_unsup, train_labels_unsup = None, None
-    validation_size = 10000
+    # validation_size = 10000
     data_valid, labels_valid = None, None
-    test_size = 10000
+    # test_size = 10000
 
     def __init__(self, mode, sup_num, use_cuda=True, *args, **kwargs):
         super(IMDBCached, self).__init__(train=mode in ["sup", "unsup", "valid"], *args, **kwargs)
@@ -245,6 +246,7 @@ def setup_data_loaders(dataset, use_cuda, batch_size, sup_num=None, **kwargs):
                                     sup_num=sup_num, use_cuda=use_cuda)
         loaders[mode] = DataLoader(cached_data[mode], batch_size=batch_size, shuffle=True, collate_fn=my_collate,  **kwargs)
 
+
     return loaders
 
 
@@ -264,7 +266,7 @@ RESULTS_DIR = os.path.join(EXAMPLE_DIR, 'results')
 
 
 if __name__ == '__main__':
-    data_loaders = setup_data_loaders(IMDBCached, False, 200, sup_num=3000)
+    data_loaders = setup_data_loaders(IMDBCached, False, 200, sup_num=1000)
     sup_iter = iter(data_loaders["sup"])
     for i in range(10):
         (xs, ys) = next(sup_iter)

@@ -162,6 +162,7 @@ def main():
     jit = False
     guide = config_enumerate(ss_vae.guide, "parallel", expand=True)
     elbo = (JitTraceEnum_ELBO if jit else TraceEnum_ELBO)()
+
     loss_basic = SVI(ss_vae.model, guide, optimizer, loss=elbo)
 
     # build a list of all losses considered
@@ -173,21 +174,23 @@ def main():
         elbo = JitTrace_ELBO() if jit else Trace_ELBO()
         loss_aux = SVI(ss_vae.model_classify, ss_vae.guide_classify, optimizer, loss=elbo)
         losses.append(loss_aux)
-
-    batch_size = 200
-    sup_num = 3000
+    
+    batch_size = 32
+    valid_num = 1000
+    train_data_size = 9501
+    sup_num = 3496
     try:
         # setup the logger if a filename is provided
         logger = open('./tmp.log', "w") if './tmp.log' else None
-        data_loaders = setup_data_loaders(IMDBCached, cuda, batch_size=48, sup_num=3000)
+        data_loaders = setup_data_loaders(IMDBCached, cuda, batch_size=32, sup_num=valid_num)
 
         # how often would a supervised batch be encountered during inference
         # e.g. if sup_num is 3000, we would have every 16th = int(50000/3000) batch supervised
         # until we have traversed through the all supervised batches
-        periodic_interval_batches = int(IMDBCached.train_data_size / (1.0 * sup_num))
+        periodic_interval_batches = int(train_data_size / (1.0 * sup_num))
 
         # number of unsupervised examples
-        unsup_num = IMDBCached.train_data_size - sup_num
+        unsup_num =  train_data_size - sup_num
 
         # initializing local variables to maintain the best validation accuracy
         # seen across epochs over the supervised training set
@@ -195,7 +198,7 @@ def main():
         best_valid_acc, corresponding_test_acc = 0.0, 0.0
 
         # run inference for a certain number of epochs
-        num_epochs = 10
+        num_epochs = 200
         for i in range(0, num_epochs):
             # get the losses for an epoch
             epoch_losses_sup, epoch_losses_unsup = \
