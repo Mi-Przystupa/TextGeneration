@@ -12,7 +12,7 @@ class SeqRNN(nn.Module):
             outputs=2,
             batch_size=4,
             batchfirst=True,
-            dropout = 0.3,
+            dropout = 0.00,
             y_inputs=0
             ):
         super(SeqRNN, self).__init__()

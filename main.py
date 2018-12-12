@@ -6,6 +6,7 @@ import torch.nn as nn
 import pyro
 import pyro.distributions as dist
 from pyro.contrib.examples.util import print_and_log
+import pyro.poutine as poutine
 from pyro.infer import SVI, JitTrace_ELBO, JitTraceEnum_ELBO, Trace_ELBO, TraceEnum_ELBO, config_enumerate
 from pyro.optim import Adam
 #from mnist_cached import MNISTCached, mkdir_p, setup_data_loaders
@@ -122,9 +123,10 @@ def generateSentences(data_loader, generator_fn, word_model, sentiment=0):
 
     # compute the number of accurate predictions
     sentences = []
+    word_limit = 50
     for pred, act in zip(predictions, actuals):
-        pred_sentence = create_sentences(pred, word_model, word_limit=15)
-        act_sentence = create_sentences(act, word_model, word_limit=15)
+        pred_sentence = create_sentences(pred, word_model, word_limit=word_limit)
+        act_sentence = create_sentences(act, word_model, word_limit=word_limit)
         sentences = {'pred': pred_sentence, 'act': act_sentence}
         break
 
@@ -145,19 +147,20 @@ def main():
             z_dim=300, kernels=[3,4,5],
             filters=[100,100,100], hidden_size = 300,
             num_rnn_layers = 1,
-            config_enum="sequential", use_cuda=cuda,
+            config_enum="parallel", use_cuda=cuda,
             aux_loss_multiplier=46
             )
+
     ss_vae = ss_vae.cuda()
 
     # setup the optimizer
-    adam_params = {"lr": 1e-3, "betas": (0.9, 0.999)}
+    adam_params = {"lr": 1e-4, "betas": (0.9, 0.999)}
     optimizer = Adam(adam_params)
 
     # set up the loss(es) for inference. wrapping the guide in config_enumerate builds the loss as a sum
     # by enumerating each class label for the sampled discrete categorical distribution in the model
     jit = False
-    guide = config_enumerate(ss_vae.guide, "sequential")#, expand=True)
+    guide = config_enumerate(ss_vae.guide, "parallel", expand=True)
     elbo = (JitTraceEnum_ELBO if jit else TraceEnum_ELBO)()
     loss_basic = SVI(ss_vae.model, guide, optimizer, loss=elbo)
 
@@ -176,7 +179,7 @@ def main():
     try:
         # setup the logger if a filename is provided
         logger = open('./tmp.log', "w") if './tmp.log' else None
-        data_loaders = setup_data_loaders(IMDBCached, cuda, batch_size=128, sup_num=3000)
+        data_loaders = setup_data_loaders(IMDBCached, cuda, batch_size=48, sup_num=3000)
 
         # how often would a supervised batch be encountered during inference
         # e.g. if sup_num is 3000, we would have every 16th = int(50000/3000) batch supervised
@@ -215,6 +218,10 @@ def main():
             # to make any decisions during training
             test_accuracy = get_accuracy(data_loaders["test"], ss_vae.classifier, batch_size)
             str_print += " test accuracy {}".format(test_accuracy)
+
+            torch.save(ss_vae.state_dict(), 'ss_vae_model.pth')
+            pyro.get_param_store().save('pyro_param_store.store')
+
 
             # update the best validation accuracy and the corresponding
             # testing accuracy and the state of the parent module (including the networks)

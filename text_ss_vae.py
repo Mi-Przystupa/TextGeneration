@@ -28,6 +28,17 @@ def get_MLP(input_size, hidden_layers, output_size, o_activation=None):
     return MLP
 
 
+class Exp(nn.Module):
+    """
+    custom module I stole from pyro...although i mean it's not like super profound
+    """
+
+    def __init__(self):
+        super(Exp, self).__init__()
+
+    def forward(self, val):
+        return torch.exp(val)
+
 
 class TextSSVAE(nn.Module):
     """
@@ -108,14 +119,10 @@ class TextSSVAE(nn.Module):
         self.encoder_y = CNNTextEncoder( self.kernels,
             self.filters,
             self.embed_dim,
-            p=.5,
+            p=0.00,
             hidden_dim=hidden_size,
             outputs=2,
-            batch_first=True, input_y=0)
-
-        #if embed_matrix is not None:
-        #    self.encoder_y.load_embeddings(embed_matrix, self.padding_index)
-
+            batch_first=True, input_y=0, output_activation=F.softmax)
 
         # a split in the final layer's size is used for multiple outputs
         # and potentially applying separate activation functions on them
@@ -123,27 +130,21 @@ class TextSSVAE(nn.Module):
         # to produce loc and scale, and apply different activations [None,Exp] on them
         
         print('encoder_z inputs y is fixed, please fix')
-        self.encoder_z = CNNTextEncoder( self.kernels,
+        self.encoder_z = CNNTextEncoder(self.kernels,
             self.filters,
             self.embed_dim,
-            p=.5,
+            p=0.00,
             outputs= self.z_dim,
              hidden_dim= hidden_size,
             batch_first=True,
             input_y=2)
 
-        #if embed_matrix is not None:
-        #    self.encoder_z.load_embeddings(embed_matrix, self.padding_index)
-
         self.encoder_z_mean = nn.Linear(z_dim, z_dim)
         self.encoder_z_var = nn.Sequential(
                 nn.Linear(z_dim, z_dim),
-                nn.Softplus(beta=2.7)) #probably should use exp function...oh well
+                Exp()) #probably should use exp function...oh well
 
         self.decoder = SeqRNN(self.embed_dim, hidden_size=self.hidden_size, num_rnn_layers=num_rnn_layers, outputs= self.vocab_size, y_inputs=2)
-
-        #if embed_matrix is not None:
-        #    self.decoder.load_embeddings(embed_matrix, self.padding_index)
 
         # using GPUs for faster training of the networks
         if self.use_cuda:
@@ -168,10 +169,9 @@ class TextSSVAE(nn.Module):
         pyro.module("text_ss_vae", self)
 
         batch_size = len(xs)#xs.size(0)
-        with pyro.iarange("data"):
+        with pyro.plate("data"):
 
-            # sample the handwriting style from the constant prior distribution
-            #print('original used new_zeros...not sure wut it is')
+            # sample the  style from the constant prior distribution
             prior_loc = torch.zeros([batch_size, self.z_dim])
             prior_scale = torch.ones([batch_size, self.z_dim])
             if self.use_cuda:
@@ -197,14 +197,21 @@ class TextSSVAE(nn.Module):
             # parametrized distribution p(x|y,z) = bernoulli(decoder(y,z))
             # where `decoder` is a neural network
 
-            decoded_output = self.decode_sentence(zs, ys, lengths, batch_size)
+            if len(ys.size()) > 2:
+                slices = []
+                for zs_marginal, y_marginal in zip(zs,ys):
+                    decoded_output = self.decode_sentence(zs_marginal, y_marginal, lengths, batch_size)
+                    slices.append(decoded_output)
+                decoded_output = torch.cat(slices,dim=-1)
+            else:
+                decoded_output = self.decode_sentence(zs, ys, lengths, batch_size)
 
             xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
 
             if self.use_cuda:
                 xs = xs.cuda()
-            xs = xs[:,0:15]
-            pyro.sample("x", dist.Categorical(logits=decoded_output).independent(1), obs=xs)
+            xs = xs[:,0:torch.max(lengths)]
+            pyro.sample("x", dist.Categorical(logits=decoded_output).to_event(1), obs=xs)
             # return the loc so we can visualize it later
             return decoded_output
 
@@ -229,15 +236,13 @@ class TextSSVAE(nn.Module):
         #Get embeddings
         xs = self.embeddings(xs)
         # inform Pyro that the variables in the batch of xs, ys are conditionally independent
-
-        with pyro.iarange("data"):
-
+        with pyro.plate("data"):
             # if the class label (the digit) is not supervised, sample
             # (and score) the digit with the variational distribution
             # q(y|x) = categorical(alpha(x))
             if ys is None:
                 alpha = self.encoder_y.forward(xs, lengths)
-                ys = pyro.sample("y", dist.OneHotCategorical(F.softmax(alpha,dim=1)))
+                ys = pyro.sample("y", dist.OneHotCategorical(alpha))
             else:
                 ys = torch.stack(ys)
                 if self.use_cuda:
@@ -251,7 +256,7 @@ class TextSSVAE(nn.Module):
             scale = self.encoder_z_var(output)
 
             #loc, scale = self.encoder_z.forward([xs, ys])
-            pyro.sample("z", dist.Normal(loc, scale).independent(1))
+            pyro.sample("z", dist.Normal(loc, scale).to_event(1))
 
     def classifier(self, xs, lengths):
         """
@@ -301,7 +306,7 @@ class TextSSVAE(nn.Module):
         pyro.module("text_ss_vae", self)
 
         # inform Pyro that the variables in the batch of xs, ys are conditionally independent
-        with pyro.iarange("data"):
+        with pyro.plate("data"):
             # this here is the extra term to yield an auxiliary loss that we do gradient descent on
             if ys is not None:
                 alpha = self.encoder_y.forward(xs,lengths)
@@ -315,7 +320,7 @@ class TextSSVAE(nn.Module):
         """
 
     def decode_sentence(self, init_hidden, ys, lengths, batch_size):
-        length_hack = 15
+        length_hack = torch.max(lengths)
 
         decoder_output = torch.zeros(batch_size, length_hack, self.vocab_size) #torch.max(lengths))
 
@@ -327,6 +332,8 @@ class TextSSVAE(nn.Module):
             decoder_output = decoder_output.cuda()
 
         inputs = self.embeddings(inputs)
+        if len(ys.size()) > 2:
+            print('break point')
 
         hidden = torch.cat([init_hidden, ys], dim=1)
         hidden = hidden.unsqueeze(0)

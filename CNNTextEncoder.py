@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
+from pyro.distributions.util import broadcast_shape
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence, pad_sequence
 
 class CNNTextEncoder(nn.Module):
@@ -13,7 +14,8 @@ class CNNTextEncoder(nn.Module):
             p=.5, hidden_dim=300,
             outputs=2,
             batch_first=True,
-            input_y=0):
+            input_y=0,
+            output_activation=None):
         super(CNNTextEncoder, self).__init__()
         assert(len(kernels) == len(filters))
         assert(len(kernels) == 3)
@@ -21,6 +23,7 @@ class CNNTextEncoder(nn.Module):
 
         self.batch_first = batch_first
         self.batch_size = 1
+        self.output_activation = output_activation
 
         #parameter configs
         self.conv1 = nn.Conv2d(1, filters[0], (kernels[0], embed_dim))
@@ -56,12 +59,19 @@ class CNNTextEncoder(nn.Module):
         X3 = F.adaptive_max_pool2d(X3, (1,1)).squeeze(2).squeeze(2)
 
         if y is not None:
-
-            X = torch.cat([X1, X2, X3, y], dim=1)
+            if len(y.size()) > 2:
+                X = torch.cat([X1, X2, X3], dim=1)
+                shape = broadcast_shape(*[s.shape[:-1] for s in [X, y]]) + (-1,)
+                args = [s.expand(shape) for s in [X, y]]
+                X = torch.cat(args, dim=-1)
+            else:
+                X = torch.cat([X1, X2, X3, y], dim=1)
         else:
             X = torch.cat([X1, X2, X3], dim=1)
 
         X = F.relu(X)
         X = self.fully_connected(X)
+        if self.output_activation is not None:
+            X = self.output_activation(X, dim=1)
 
         return X

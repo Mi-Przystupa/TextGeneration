@@ -6,3 +6,6 @@ tmp.log
 *.model
 *.csv
 venv/
+*.store
+*.pth
+.idea/workspace.xml
