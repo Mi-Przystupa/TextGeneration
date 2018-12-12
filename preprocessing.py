@@ -99,7 +99,7 @@ class TextPreprocessing:
             print('invalid representation returning data unchanged')
             return X
 
-def FilterEntriesByLength(data,indices, savename, length=50):
+def FilterEntriesByLength(data,indices, savename, length=30):
     sentence_tokens = []
     all_labels = [d[1] for d in data]
     sentence_labels = []
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     # for debugging
     train_data = SentimentDataSet(withLabel=True)
     CreateCSV(train_data, 'train.csv')
-    test_data = SentimentDataSet(withLabel=True, path='../aclImdb/test/')
+    test_data = SentimentDataSet(withLabel=True, path='/media/marjan/Data/UBC/Winter 2018/Probalistic programming/final_project/data/IMDB/aclImdb_v1/aclImdb/test/')
     CreateCSV(test_data, 'test.csv')
 
     train_data = SentimentDataSet(withLabel=True, csv_file='train.csv')
@@ -132,14 +132,13 @@ if __name__ == "__main__":
     stopwords = ['<br />']
     preprocessing = TextPreprocessing('word2vec', train_data, stop_words=stopwords, filter_top_n=True)
 
-
     train_indices = preprocessing.ConvertDataToIndices(preprocessing.corpus)
 
     test_tokens = preprocessing.TokenizeData(test_data)
     test_indices = preprocessing.ConvertDataToIndices(test_tokens)
 
-    FilterEntriesByLength(train_data, train_indices, 'train_data_tokenized')
-    FilterEntriesByLength(test_data, test_indices, 'test_data_tokenized')
+    FilterEntriesByLength(train_data, train_indices, 'train_data_tokenized', length=30)
+    FilterEntriesByLength(test_data, test_indices, 'test_data_tokenized', length=30)
 
 
 

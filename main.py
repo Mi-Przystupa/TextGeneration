@@ -176,9 +176,9 @@ def main():
         losses.append(loss_aux)
     
     batch_size = 32
-    valid_num = 1000
-    train_data_size = 9501
-    sup_num = 3496
+    valid_num = 100
+    train_data_size = 3409
+    sup_num = 1163
     try:
         # setup the logger if a filename is provided
         logger = open('./tmp.log', "w") if './tmp.log' else None
@@ -199,6 +199,10 @@ def main():
 
         # run inference for a certain number of epochs
         num_epochs = 200
+        sup_loss_log = []
+        unsup_loss_log = []
+
+
         for i in range(0, num_epochs):
             # get the losses for an epoch
             epoch_losses_sup, epoch_losses_unsup = \
@@ -207,7 +211,10 @@ def main():
             # compute average epoch losses i.e. losses per example
             avg_epoch_losses_sup = map(lambda v: v / sup_num, epoch_losses_sup)
             avg_epoch_losses_unsup = map(lambda v: v / unsup_num, epoch_losses_unsup)
-
+            
+            sup_loss_log.append(avg_epoch_losses_sup)
+            unsup_loss_log.append(avg_epoch_losses_unsup)
+            
             # store the loss and validation/testing accuracies in the logfile
             str_loss_sup = " ".join(map(str, avg_epoch_losses_sup))
             str_loss_unsup = " ".join(map(str, avg_epoch_losses_unsup))
@@ -231,18 +238,21 @@ def main():
             if best_valid_acc < validation_accuracy:
                 best_valid_acc = validation_accuracy
                 corresponding_test_acc = test_accuracy
+            if i % 10 == 0:
+                neg_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=0)
+                pos_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=1)
+
+                pd.DataFrame.from_dict(pos_sentences).to_csv('positive_sentences.csv', encoding='utf-8')
+                pd.DataFrame.from_dict(neg_sentences).to_csv('negative_sentences.csv', encoding='utf-8')
 
             print_and_log(logger, str_print)
-
+        
+        np.save("avg_loss_sup", np.asarray(sup_loss_log))
+        np.save("avg_loss_unsup", np.asarray(unsup_loss_log))
         final_test_accuracy = get_accuracy(data_loaders["test"], ss_vae.classifier, batch_size)
         print_and_log(logger, "best validation accuracy {} corresponding testing accuracy {} "
                       "last testing accuracy {}".format(best_valid_acc, corresponding_test_acc, final_test_accuracy))
 
-        neg_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=0)
-        pos_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=1)
-
-        pd.DataFrame.from_dict(pos_sentences).to_csv('positive_sentences.csv')
-        pd.DataFrame.from_dict(neg_sentences).to_csv('negative_sentences.csv')
     finally:
         # close the logger file object if we opened it earlier
         logfile = True

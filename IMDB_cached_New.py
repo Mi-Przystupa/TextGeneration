@@ -85,7 +85,7 @@ def get_ss_indices_per_class(y, sup_per_class):
     return idxs_sup, idxs_unsup
 
 
-def split_sup_unsup_valid(unsup_x, unsup_y, sup_x, sup_y, validation_num=10000):
+def split_sup_unsup_valid(unsup_x, unsup_y, sup_x, sup_y, validation_num=100):
     """
     helper function for splitting the data into supervised, un-supervised and validation parts
     :param X: images
