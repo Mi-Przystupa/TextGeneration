@@ -16,6 +16,7 @@ import pandas as pd
 import nltk
 from nltk import word_tokenize
 from nltk.translate.bleu_score import sentence_bleu
+import numpy as np
 
 nltk.download('punkt')
 def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
@@ -169,6 +170,18 @@ def main():
 
     ss_vae = ss_vae.cuda()
 
+    try:
+        pyro.get_param_store().load('pyro_param_store.store')
+        print('successfully loaded param store, remove file from directory if undesired')
+    except Exception:
+        print("failed to load param store, starting over")
+
+    try:
+        ss_vae.load_state_dict(torch.load('ss_vae_model.pth'))
+        print('successfully loaded model parameters, remove file from directory if undesired')
+    except Exception:
+        print("failed to load model parameters")
+
     # setup the optimizer
     adam_params = {"lr": 1e-4,"betas": (0.9, 0.999), "weight_decay": 0.01}
     optimizer = Adam(adam_params)
@@ -261,6 +274,14 @@ def main():
                 str_print += " pos_bleu {}".format(pos_bleu)
                 pd.DataFrame.from_dict(pos_sentences).to_csv('positive_sentences.csv', encoding='utf-8')
                 pd.DataFrame.from_dict(neg_sentences).to_csv('negative_sentences.csv', encoding='utf-8')
+
+                cond_neg_sentences, neg_bleu = generateSentences(data_loaders["test"], ss_vae.conditioned_generation, ss_vae.w2v_model, sentiment=0)
+                cond_pos_sentences, pos_bleu = generateSentences(data_loaders["test"], ss_vae.conditioned_generation, ss_vae.w2v_model, sentiment=1)
+                pd.DataFrame.from_dict(cond_pos_sentences).to_csv('cond_positive_sentences.csv', encoding='utf-8')
+                pd.DataFrame.from_dict(cond_neg_sentences).to_csv('cond_negative_sentences.csv', encoding='utf-8')
+                str_print += "cond_neg_bleu {}".format(neg_bleu)
+                str_print += "cond_pos_bleu {}".format(pos_bleu)
+
 
             print_and_log(logger, str_print)
         

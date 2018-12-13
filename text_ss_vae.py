@@ -258,6 +258,27 @@ class TextSSVAE(nn.Module):
             #loc, scale = self.encoder_z.forward([xs, ys])
             pyro.sample("z", dist.Normal(loc, scale).to_event(1))
 
+    def conditioned_generation(self, xs, lengths, ys):
+        xs = pad_sequence(xs, batch_first=True, padding_value=self.padding_idx)
+        ys = torch.stack(ys)
+
+        if self.use_cuda:
+            xs = xs.cuda()
+            ys = ys.cuda()
+            lengths = lengths.cuda()
+
+        batch_size = len(xs)
+        xs = self.embeddings(xs)
+        with pyro.plate("data"):
+            output = self.encoder_z.forward(xs, lengths, y=ys)
+            loc = self.encoder_z_mean(output)
+            scale = self.encoder_z_var(output)
+
+            zs = pyro.sample("z", dist.Normal(loc, scale).to_event(1))
+            decoded_output = self.decode_sentence(zs, ys, lengths, batch_size)
+
+            return decoded_output
+
     def classifier(self, xs, lengths):
         """
         classify an image (or a batch of images)
