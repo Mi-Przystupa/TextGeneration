@@ -28,7 +28,7 @@ class TextPreprocessing:
         # assumed data is iterable and returns a tuple of size 1
         # inside the tuple is a string
         # my_sentences = [s[0] for s in data if len(s[0]) < 60]
-        sentences = [[token for token in tokenize(remove_stopwords(d[0]), lowercase=True) if token not in self.sw] \
+        sentences = [[token for token in tokenize(d[0], lowercase=True) if token not in self.sw] \
                 for d in data]
 
         return sentences

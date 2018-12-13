@@ -13,7 +13,11 @@ from pyro.optim import Adam
 from text_ss_vae import TextSSVAE
 from IMDB_cached_New import setup_data_loaders, IMDBCached
 import pandas as pd
+import nltk
+from nltk import word_tokenize
+from nltk.translate.bleu_score import sentence_bleu
 
+nltk.download('punkt')
 def run_inference_for_epoch(data_loaders, losses, periodic_interval_batches):
     """
     runs the inference algorithm for an epoch
@@ -108,7 +112,7 @@ def generateSentences(data_loader, generator_fn, word_model, sentiment=0):
     compute the accuracy over the supervised training set or the testing set
     """
     predictions, actuals = [], []
-
+    total_bleu = 0.
     # use the appropriate data loader
     for (xs,lengths, ys) in data_loader:
 
@@ -121,17 +125,29 @@ def generateSentences(data_loader, generator_fn, word_model, sentiment=0):
         predictions.append(generated)
         actuals.append(xs)
 
+
     # compute the number of accurate predictions
     sentences = []
     word_limit = 50
     for pred, act in zip(predictions, actuals):
         pred_sentence = create_sentences(pred, word_model, word_limit=word_limit)
         act_sentence = create_sentences(act, word_model, word_limit=word_limit)
-        sentences = {'pred': pred_sentence, 'act': act_sentence}
+        blue_score = compute_bleu(act_sentence, pred_sentence)
+        total_bleu += blue_score
+        sentences = {'pred': pred_sentence, 'act': act_sentence, 'bleu': blue_score}
         break
 
-    return sentences
-
+    return sentences, total_bleu
+def compute_bleu(reference_sentence, predicted_sentence):
+    """
+    Given a reference sentence, and a predicted sentence, compute the BLEU similary between them.
+    """
+    bleu = 0
+    for act, pred in zip(reference_sentence, predicted_sentence):
+        reference_tokenized = word_tokenize(act)
+        predicted_tokenized = word_tokenize(pred)
+        bleu += sentence_bleu([reference_tokenized], predicted_tokenized)
+    return bleu
 
 def main():
     """
@@ -154,7 +170,7 @@ def main():
     ss_vae = ss_vae.cuda()
 
     # setup the optimizer
-    adam_params = {"lr": 1e-4, "betas": (0.9, 0.999)}
+    adam_params = {"lr": 1e-4,"betas": (0.9, 0.999), "weight_decay": 0.01}
     optimizer = Adam(adam_params)
 
     # set up the loss(es) for inference. wrapping the guide in config_enumerate builds the loss as a sum
@@ -239,9 +255,10 @@ def main():
                 best_valid_acc = validation_accuracy
                 corresponding_test_acc = test_accuracy
             if i % 10 == 0:
-                neg_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=0)
-                pos_sentences = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=1)
-
+                neg_sentences, neg_bleu = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=0)
+                pos_sentences, pos_bleu = generateSentences(data_loaders["test"], ss_vae.model, ss_vae.w2v_model, sentiment=1)
+                str_print += " neg_bleu {}".format(neg_bleu)
+                str_print += " pos_bleu {}".format(pos_bleu)
                 pd.DataFrame.from_dict(pos_sentences).to_csv('positive_sentences.csv', encoding='utf-8')
                 pd.DataFrame.from_dict(neg_sentences).to_csv('negative_sentences.csv', encoding='utf-8')
 
