@@ -330,14 +330,14 @@ class TextSSVAE(nn.Module):
         if self.use_cuda:
             inputs = inputs.cuda()
             decoder_output = decoder_output.cuda()
-
+        decoder_output[: ,0 ,:] = inputs
         inputs = self.embeddings(inputs)
 
         hidden = torch.cat([init_hidden, ys], dim=1)
         hidden = hidden.unsqueeze(0)
         for t in range(1, length_hack):
             output, hidden = self.decoder.forward(inputs, hidden)
-            decoder_output[:,t, :] = output.squeeze(1)
+            decoder_output[:, t, :] = output.squeeze(1)
             top1 = output.max(2)[1]
             inputs = self.embeddings(top1)
             #hidden = torch.cat([hidden, ys], dim=1)
