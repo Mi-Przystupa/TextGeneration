@@ -279,8 +279,8 @@ def main():
                 cond_pos_sentences, pos_bleu = generateSentences(data_loaders["test"], ss_vae.conditioned_generation, ss_vae.w2v_model, sentiment=1)
                 pd.DataFrame.from_dict(cond_pos_sentences).to_csv('cond_positive_sentences.csv', encoding='utf-8')
                 pd.DataFrame.from_dict(cond_neg_sentences).to_csv('cond_negative_sentences.csv', encoding='utf-8')
-                str_print += "cond_neg_bleu {}".format(neg_bleu)
-                str_print += "cond_pos_bleu {}".format(pos_bleu)
+                str_print += " cond_neg_bleu {}".format(neg_bleu)
+                str_print += " cond_pos_bleu {}".format(pos_bleu)
 
 
             print_and_log(logger, str_print)
